@@ -173,7 +173,7 @@ html.dark-mode {
 }
 
 html.dark-mode :root {
-  --bg: #0b0d0f;
+  --bg: #22262b;
   --surface: #0f1113;
   --text: #e6eef6;
   --muted: #9aa6b2;
@@ -182,7 +182,7 @@ html.dark-mode :root {
 }
 
 html.dark-mode body {
-  background: #0b0d0f !important;
+  background: #22262b !important;
   color: #e6eef6;
 }
 
@@ -254,7 +254,7 @@ html.dark-mode .audiomack-container {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b0d0f;
+    --bg: #22262b;
     --surface: #0f1113;
     --text: #e6eef6;
     --muted: #9aa6b2;
