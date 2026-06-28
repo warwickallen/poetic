@@ -10,7 +10,7 @@ A plain-text poem authoring framework. Write poems in a concise `.poem` format, 
 - **Vim syntax highlighting** — filetype detection and highlighting for `.poem` files (see [`editors/vim/`](editors/vim/))
 - **GitHub Pages deployment** — included workflow deploys your published HTML on push to `main`
 
-## Usage Example
+## Example site
 
 The Poetic framework is used to build the [Fragments & Unity][Fragments & Unity - all] site ([source][Fragments & Unity]).
 Across the two poems, [My Shepherd] and [At The End of Myself], many of the `.poem` syntax features are demonstrated.
@@ -71,7 +71,7 @@ git push -u origin main           # push to GitHub (-u only needed the first tim
 
 ### 3. Enable GitHub Pages
 
-In your repo settings, set Pages source to **GitHub Actions**.
+In your repo settings, set Pages source to **GitHub Actions**. The included workflow (`.github/workflows/build-poems.yml`) then builds and deploys your site on every push to `main`.
 
 ### 4. Write your first poem
 
@@ -153,10 +153,6 @@ For everyday writing, `src/poems/poem/` is the only directory you need to touch.
 
 Files beginning with `_` (e.g. `_example.poem`, `_shared.yaml`) are excluded from the build.
 
-## GitHub Pages
-
-The included workflow (`.github/workflows/build-poems.yml`) builds and deploys to GitHub Pages on every push to `main`. Enable GitHub Pages in your repo settings (source: GitHub Actions).
-
 ## Staying up to date
 
 ### Versioning
@@ -175,26 +171,34 @@ bash scripts/sync-framework.sh --ref v1.2.0         # pin to a specific release
 
 The script fetches the `poetic` remote, checks out all framework files at the requested ref, and updates `.poetic-version` with the synced commit. Review the staged changes, then commit.
 
-### Automatic sync (GitHub Actions)
+### Configuration
 
-The included workflow (`.github/workflows/sync-framework.yml`) checks for updates every hour and opens a pull request (a proposal to merge the changes, which you review and approve on GitHub) if framework files are behind. Scheduled runs are **opt-in**: create a `.poetic-config` file in your repo root to enable them:
+Create a `.poetic-config` file in your repo root to configure site settings and auto-sync behaviour:
 
 ```
 auto_sync=true
 sync_schedule=weekly
 ```
 
-`.poetic-config` also supports these options:
+Commit it to your repo so that GitHub Actions can read it when building and deploying your site. Supported keys:
 
 | Key | Purpose |
 |---|---|
 | `auto_sync` | Set to `true` to enable scheduled auto-sync (default: disabled) |
-| `sync_schedule` | How often the workflow runs: `hourly`, `daily`, or `weekly` (default: `weekly`) |
+| `sync_schedule` | How often the workflow synchronisation schedule runs: `hourly`, `daily`, or `weekly` (default: `weekly`).  See [Automatic sync (GitHub Actions)](#automatic-sync-github-actions) below. |
 | `skip_paths` | Comma-separated list of framework paths to leave untouched during sync (e.g. `public/poetic.css`) |
 | `favicon` | Filename of the favicon shown in browser tabs (default: `poetic-logo.svg`; file must exist in `public/`) |
 | `subtitle` | Subtitle shown beneath the site title on the index page |
 
-`sync_schedule` controls how often the workflow actually does anything (default `weekly` if omitted):
+Settings such as `favicon`, `subtitle`, `auto_sync`, and `sync_schedule` are only applied during CI if `.poetic-config` is present in the repository.
+
+### Automatic sync (GitHub Actions)
+
+The included workflow (`.github/workflows/sync-framework.yml`) opens a pull request (a proposal to merge the changes, which you review and approve on GitHub) if framework files are behind. Scheduled runs are **opt-in**: set `auto_sync=true` in `.poetic-config` to enable them.
+
+To trigger a sync immediately (e.g., to pick up a specific release), use **Actions → Sync framework from poetic → Run workflow** and optionally enter a ref. Manual runs always work regardless of the `auto_sync` setting.
+
+The `sync_schedule` configuration key controls how often the workflow actually does anything (default `weekly` if omitted):
 
 | Value | Behaviour |
 |---|---|
@@ -202,9 +206,7 @@ sync_schedule=weekly
 | `daily` | Runs once per day at 09:00 UTC |
 | `hourly` | Runs every hour |
 
-Commit `.poetic-config` to your repo so that GitHub Actions can read it when building and deploying your site. Settings such as `favicon`, `subtitle`, `auto_sync`, and `sync_schedule` are only applied during CI if the file is present in the repository. Manual runs via **Actions → Sync framework from poetic → Run workflow** always work regardless of this setting.
-
-`.poetic-version` controls the update channel:
+The `.poetic-version` file controls the update channel:
 
 | Setting | Behaviour |
 |---|---|
@@ -212,12 +214,6 @@ Commit `.poetic-config` to your repo so that GitHub Actions can read it when bui
 | `channel=main` | Opens a PR whenever `poetic/main` has new commits (cutting-edge, less stable) |
 
 To switch channels, edit `.poetic-version` and change the `channel` line.
-
-To trigger a sync immediately (e.g., to pick up a specific release), use **Actions → Sync framework from poetic → Run workflow** and optionally enter a ref.
-
-### Contributing back to poetic
-
-If you improve a framework file (a tool, template, editor integration, or doc), please open a pull request against [warwickallen/poetic](https://github.com/warwickallen/poetic). Personal poems and your `README.md` stay in your own repo.
 
 ## Documentation
 
@@ -228,6 +224,10 @@ If you improve a framework file (a tool, template, editor integration, or doc), 
 - [`docs/BUILD.md`](docs/BUILD.md) — GitHub Pages deployment details
 - [`docs/VIM-SYNTAX.md`](docs/VIM-SYNTAX.md) — Vim syntax highlighting setup
 - [`docs/QUICKSTART-VIM.md`](docs/QUICKSTART-VIM.md) — quick Vim setup guide
+
+## Contributing
+
+If you improve a framework file (a tool, template, editor integration, or doc), please open a pull request against [warwickallen/poetic](https://github.com/warwickallen/poetic). Personal poems and your `README.md` stay in your own repo.
 
 ## Further information
 
