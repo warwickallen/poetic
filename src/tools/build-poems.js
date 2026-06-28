@@ -1,168 +1,37 @@
 #!/usr/bin/env node
 /**
- * Build script to generate individual poem HTML files from YAML sources
+ * Build script to generate individual poem HTML files from YAML sources.
+ *
+ * For each poem it writes:
+ *   public/<slug>/index.html  - full standalone HTML page (linked CSS/JS)
+ *   public/<slug>.html        - redirect stub → ./<slug>/
  */
 
 const fs = require("fs");
 const path = require("path");
-const yaml = require("js-yaml");
-const pug = require("pug");
 const { slugify } = require("./slugify");
 const { formatDateForDisplay } = require("./date-utils");
+const { readPoeticConfig } = require("./poetic-config");
+const { resolveRefs, readPoemFile, clearRefCache, renderPage } = require("./poem-render");
 
 const POEMS_DIR = path.join(process.cwd(), "src", "poems", "yaml");
 const PUBLIC_DIR = path.join(process.cwd(), "public");
-const TEMPLATE_FILE = path.join(process.cwd(), "src", "templates", "poem.pug");
-
-/**
- * Cache for resolved references to improve build performance
- */
-const refCache = new Map();
-
-/**
- * Validate that a referenced element exists in the loaded data
- */
-function validateReferencedElement(data, jsonPath, refPath) {
-  if (!jsonPath) return true;
-
-  const pathParts = jsonPath.split('/').filter(part => part !== '');
-  let current = data;
-
-  for (const part of pathParts) {
-    if (!current || typeof current !== 'object' || !(part in current)) {
-      console.error(`Error: Referenced element '${jsonPath}' not found in ${refPath}`);
-      console.error(`Available keys: ${Object.keys(current || {}).join(', ')}`);
-      return false;
-    }
-    current = current[part];
-  }
-
-  return true;
-}
-
-/**
- * Resolve $ref references in YAML data with validation and caching
- */
-function resolveRefs(data, basePath = POEMS_DIR) {
-  if (typeof data !== 'object' || data === null) {
-    return data;
-  }
-
-  if (Array.isArray(data)) {
-    return data.map(item => resolveRefs(item, basePath));
-  }
-
-  // Handle $ref at the top level of an object
-  if (data.$ref && typeof data.$ref === 'string') {
-    const [filePath, jsonPath] = data.$ref.split('#');
-    const fullPath = path.resolve(basePath, filePath);
-
-    // Create cache key
-    const cacheKey = `${fullPath}#${jsonPath || ''}`;
-
-    // Check cache first
-    if (refCache.has(cacheKey)) {
-      return resolveRefs(refCache.get(cacheKey), path.dirname(fullPath));
-    }
-
-    try {
-      // Validate file exists
-      if (!fs.existsSync(fullPath)) {
-        console.error(`Error: Referenced file not found: ${fullPath}`);
-        console.error(`Reference: ${data.$ref}`);
-        return data;
-      }
-
-      const refContent = fs.readFileSync(fullPath, 'utf8');
-      const refData = yaml.load(refContent);
-
-      // Validate the referenced element exists
-      if (!validateReferencedElement(refData, jsonPath, fullPath)) {
-        return data;
-      }
-
-      let result;
-      if (jsonPath) {
-        // Navigate to the specific path (e.g., "/disclaimer")
-        const pathParts = jsonPath.split('/').filter(part => part !== '');
-        result = refData;
-        for (const part of pathParts) {
-          result = result[part];
-        }
-      } else {
-        result = refData;
-      }
-
-      // Cache the resolved reference
-      refCache.set(cacheKey, result);
-
-      return resolveRefs(result, path.dirname(fullPath));
-    } catch (err) {
-      console.error(`Error resolving reference ${data.$ref}:`, err.message);
-      console.error(`File: ${fullPath}`);
-      return data;
-    }
-  }
-
-  // Recursively process all properties
-  const result = {};
-  for (const [key, value] of Object.entries(data)) {
-    // Don't recursively process Date objects - keep them as-is
-    if (value instanceof Date) {
-      result[key] = value;
-    } else {
-      result[key] = resolveRefs(value, basePath);
-    }
-  }
-
-  return result;
-}
-
-/**
- * Read and parse a YAML poem file
- */
-function readPoemFile(filePath) {
-  try {
-    const content = fs.readFileSync(filePath, "utf8");
-    const data = yaml.load(content);
-    const resolvedData = resolveRefs(data, path.dirname(filePath));
-    return resolvedData;
-  } catch (err) {
-    console.error(`Error reading ${filePath}:`, err.message);
-    return null;
-  }
-}
-
-/**
- * Generate HTML from a poem data object
- */
-function generatePoemHTML(poemData) {
-  try {
-    const compiledFunction = pug.compileFile(TEMPLATE_FILE, {
-      pretty: false,
-      cache: false,
-    });
-    const html = compiledFunction(poemData);
-    return html;
-  } catch (err) {
-    console.error(`Error generating HTML for ${poemData.title}:`, err.message);
-    return null;
-  }
-}
-
-/**
- * Clear the reference cache at the start of each build
- */
-function clearRefCache() {
-  refCache.clear();
-}
 
 /**
  * Process all YAML files in the poems directory
  */
 function buildAllPoems() {
-  // Clear cache at the start of each build
+  // Clear ref cache at the start of each build
   clearRefCache();
+
+  // Read config once
+  const config = readPoeticConfig();
+  const rawFavicon = config.favicon || "poetic-logo.svg";
+  // Strip a leading "public/" so href="../<favicon>" resolves correctly from slug/ subdirs
+  const favicon = rawFavicon.replace(/^public\//, '');
+  const subtitle = config.subtitle || 'My Poems';
+  const audiomackArtist = config.audiomack_artist || '';
+
   // Ensure directories exist
   if (!fs.existsSync(POEMS_DIR)) {
     console.error(`Error: Poems directory not found: ${POEMS_DIR}`);
@@ -171,11 +40,6 @@ function buildAllPoems() {
 
   if (!fs.existsSync(PUBLIC_DIR)) {
     fs.mkdirSync(PUBLIC_DIR, { recursive: true });
-  }
-
-  if (!fs.existsSync(TEMPLATE_FILE)) {
-    console.error(`Error: Template file not found: ${TEMPLATE_FILE}`);
-    process.exit(1);
   }
 
   // Get all YAML files
@@ -202,20 +66,20 @@ function buildAllPoems() {
 
     if (!poemData) {
       errorCount++;
-      return;
+      continue;
     }
 
     // Validate required fields
     if (!poemData.title) {
       console.error(`Error: Missing 'title' field in ${yamlFile}`);
       errorCount++;
-      return;
+      continue;
     }
 
     if (!poemData.author) {
       console.error(`Error: Missing 'author' field in ${yamlFile}`);
       errorCount++;
-      return;
+      continue;
     }
 
     // Calculate slug from title
@@ -231,29 +95,47 @@ function buildAllPoems() {
       console.warn(`⚠️  Warning: ${yamlFile} has empty versions block`);
     }
 
-    // Generate HTML
-    const html = generatePoemHTML(poemData);
-    if (!html) {
+    const slug = poemData.slug;
+
+    // ── 1. Full standalone page: public/<slug>/index.html ──────────────────
+    let pageHtml;
+    try {
+      pageHtml = renderPage(poemData, { favicon, subtitle, audiomackArtist });
+    } catch (err) {
+      console.error(`Error rendering page for ${poemData.title}:`, err.message);
       errorCount++;
-      return;
+      continue;
     }
 
-    // Prettify and write HTML file
-    const outputFile = path.join(PUBLIC_DIR, `${poemData.slug}.html`);
+    const slugDir = path.join(PUBLIC_DIR, slug);
+    const pageFile = path.join(slugDir, 'index.html');
     try {
+      fs.mkdirSync(slugDir, { recursive: true });
       const beautify = require("js-beautify");
-      const prettifiedHtml = beautify.html(html, {
+      const prettifiedHtml = beautify.html(pageHtml, {
         indent_size: 2,
         wrap_line_length: 80,
         preserve_newlines: false,
         max_preserve_newlines: 1,
         wrap_attributes: "auto"
       });
-      fs.writeFileSync(outputFile, prettifiedHtml, "utf8");
-      console.log(`✅ Generated ${poemData.slug}.html`);
+      fs.writeFileSync(pageFile, prettifiedHtml, "utf8");
+      console.log(`✅ Generated ${slug}/index.html`);
+    } catch (err) {
+      console.error(`Error writing ${pageFile}:`, err.message);
+      errorCount++;
+      continue;
+    }
+
+    // ── 2. Redirect stub: public/<slug>.html → ./<slug>/ ──────────────────
+    const redirectFile = path.join(PUBLIC_DIR, `${slug}.html`);
+    const redirectHtml = `<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8">\n<link rel="canonical" href="./${slug}/">\n<meta http-equiv="refresh" content="0; url=./${slug}/"></head>\n<body><p>This poem has moved to <a href="./${slug}/">${slug}/</a>.</p></body></html>`;
+    try {
+      fs.writeFileSync(redirectFile, redirectHtml, "utf8");
+      console.log(`↪  Generated ${slug}.html (redirect)`);
       successCount++;
     } catch (err) {
-      console.error(`Error writing ${outputFile}:`, err.message);
+      console.error(`Error writing ${redirectFile}:`, err.message);
       errorCount++;
     }
   }
@@ -261,11 +143,6 @@ function buildAllPoems() {
   console.log(
     `\n📊 Build complete: ${successCount} successful, ${errorCount} errors`
   );
-
-  // Log cache statistics
-  if (refCache.size > 0) {
-    console.log(`💾 Reference cache: ${refCache.size} entries cached`);
-  }
 
   if (errorCount > 0) {
     process.exit(1);
@@ -278,4 +155,4 @@ if (require.main === module) {
   buildAllPoems();
 }
 
-module.exports = { buildAllPoems };
+module.exports = { buildAllPoems, resolveRefs, readPoemFile };

@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 /**
- * Build script to generate all-poems.html and index.html for GitHub Pages
- * First builds individual poems from YAML, then generates concatenated view
+ * Build script to generate all-poems.html and index.html for GitHub Pages.
+ * Individual poems are already built by the previous step in the npm script chain.
+ *
+ * Changes vs. v0.1:
+ *   - Renders poem fragments in-memory via poem-render (no longer reads <slug>.html files).
+ *   - Adds <script src="poetic.js" defer> to all-poems.html (shared Audiomack loader).
+ *   - Index links now point to <slug>/ (clean URL) instead of <slug>.html.
  */
 
 const fs = require("fs");
@@ -9,25 +14,9 @@ const path = require("path");
 const yaml = require("js-yaml");
 const { slugify } = require("./slugify");
 const { parseDateForSorting, formatDateForDisplay } = require("./date-utils");
+const { readPoeticConfig } = require("./poetic-config");
+const { loadPoemData, renderFragment } = require("./poem-render");
 const beautify = require("js-beautify");
-// Individual poems are already built by the previous step in npm script chain
-
-function readPoeticConfig() {
-  const configPath = path.join(process.cwd(), ".poetic-config");
-  const config = {};
-  if (!fs.existsSync(configPath)) return config;
-  const lines = fs.readFileSync(configPath, "utf8").split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1).trim();
-    config[key] = value;
-  }
-  return config;
-}
 
 function extractCustomCSSFromStyles() {
   const publicDir = path.join(process.cwd(), "public");
@@ -53,21 +42,17 @@ function hasActiveAudio(audioData) {
     return false;
   }
 
-  // Check each audio platform (audiomack, suno, etc.)
   for (const platform in audioData) {
     const entries = audioData[platform];
     if (platform === 'suno') {
-      // For suno: direct URL string indicates active
       if (typeof entries === 'string' && entries.trim()) {
         return true;
       }
     } else if (platform === 'audiomack') {
-      // For audiomack: boolean value indicates active
       if (entries === true) {
         return true;
       }
     } else if (Array.isArray(entries)) {
-      // For other platforms: check active field (legacy format)
       if (entries.some((entry) => entry.active === true)) {
         return true;
       }
@@ -77,7 +62,7 @@ function hasActiveAudio(audioData) {
   return false;
 }
 
-function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg") {
+function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg", audiomackArtist = "") {
   try {
     // Read YAML files from the poems directory for metadata
     const poemsDir = path.join(process.cwd(), "src", "poems", "yaml");
@@ -111,7 +96,7 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg") {
 
     // Extract poem data from YAML files
     const poemData = [];
-    yamlFiles.forEach((file, index) => {
+    yamlFiles.forEach((file) => {
       const yamlPath = path.join(poemsDir, file);
 
       try {
@@ -132,24 +117,17 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg") {
           return;
         }
 
-        const htmlPath = path.join(dirPath, `${fileName}.html`);
-
-        // Check if HTML file exists
-        if (!fs.existsSync(htmlPath)) {
-          console.warn(`Warning: HTML file not found for ${fileName}`);
-          return;
-        }
-
         const anchor = `poem-${fileName}`;
         const date = data.date ? formatDateForDisplay(data.date) : "Unknown Date";
         const hasSongLink = hasActiveAudio(data.audio);
 
         poemData.push({
           fileName,
+          slug,
           title,
           date,
           anchor,
-          filePath: htmlPath,
+          yamlPath,
           hasSongLink,
         });
       } catch (err) {
@@ -165,7 +143,7 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg") {
     });
 
     // Regenerate anchors based on sorted order
-    poemData.forEach((poem, index) => {
+    poemData.forEach((poem) => {
       poem.anchor = `poem-${poem.fileName}`;
     });
 
@@ -178,6 +156,7 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg") {
     <link rel="icon" href="${favicon}" type="image/svg+xml">
     <link rel="stylesheet" href="poetic.css">
     <link rel="stylesheet" href="custom.css">
+    <script src="poetic.js" defer></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
         .container { max-width: 1200px; margin: 0 auto; }
@@ -270,19 +249,14 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg") {
             </table>
         </div>`;
 
-    // Add each HTML file content (only individual poems, not index or all-poems)
+    // Render each poem fragment in-memory (no file reads)
     poemData.forEach((poem) => {
-      // Skip index.html and all-poems.html
-      if (poem.fileName === "index" || poem.fileName === "all-poems") {
-        return;
-      }
-
       try {
-        const content = fs.readFileSync(poem.filePath, "utf8");
-
-        // Extract content between <body> tags, or use the entire content if no body tags
-        const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-        const poemContent = bodyMatch ? bodyMatch[1] : content;
+        const poemDataObj = loadPoemData(poem.yamlPath);
+        if (!poemDataObj) {
+          throw new Error(`Failed to load poem data from ${poem.yamlPath}`);
+        }
+        const poemContent = renderFragment(poemDataObj, { audiomackArtist });
 
         concatenatedContent += `
         <div class="poem-section" id="${poem.anchor}">
@@ -293,7 +267,7 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg") {
         concatenatedContent += `
         <div class="poem-section" id="${poem.anchor}">
             <h2 class="poem-title">${poem.title}</h2>
-            <div class="poem-content"><p style="color: #999; font-style: italic;">Error reading file: ${err.message}</p></div>
+            <div class="poem-content"><p style="color: #999; font-style: italic;">Error rendering poem: ${err.message}</p></div>
         </div>`;
       }
     });
@@ -458,11 +432,12 @@ function generateIndexHtml(publicDir, favicon = "poetic-logo.svg", subtitle = un
           return;
         }
 
-        const fileName = `${slug}.html`;
+        // Clean URL: point to slug/ directory instead of slug.html
+        const file = `${slug}/`;
         const hasAudio = hasActiveAudio(data.audio);
 
         poemData.push({
-          file: fileName,
+          file: file,
           title: title,
           hasAudio: hasAudio,
         });
@@ -673,10 +648,14 @@ function main() {
   if (subtitle) {
     console.log(`Using subtitle from .poetic-config: ${subtitle}`);
   }
+  const audiomackArtist = config.audiomack_artist || '';
+  if (audiomackArtist) {
+    console.log(`Using audiomack_artist from .poetic-config: ${audiomackArtist}`);
+  }
 
   console.log("Step 1: Building all-poems.html...");
 
-  const concatenatedContent = concatenateAllHtmlFiles(publicDir, favicon);
+  const concatenatedContent = concatenateAllHtmlFiles(publicDir, favicon, audiomackArtist);
   const allPoemsOutputPath = path.join(publicDir, "all-poems.html");
 
   const prettifiedContent = beautify.html(concatenatedContent, {

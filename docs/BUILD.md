@@ -107,10 +107,15 @@ public/
 ├── index.html                           # Main landing page
 ├── all-poems.html                       # Generated concatenated view
 ├── poetic.css                           # Framework CSS (synced from poetic)
+├── poetic.js                            # Framework JS — shared Audiomack loader (synced)
 ├── custom.css                           # User CSS (never overwritten by sync)
 ├── fragments-and-unity.template.html    # Blogger template with injected CSS
-├── poem1.html                           # Individual poems
+├── poem1.html                           # Redirect stub → poem1/ (meta-refresh)
 ├── poem2.html
+├── poem1/
+│   └── index.html                       # Standalone styled page (clean URL /poem1/)
+├── poem2/
+│   └── index.html
 └── ...
 
 src/poems/
@@ -131,9 +136,41 @@ src/tools/
 ├── build-all-poems.js                   # Main build script
 ├── build-poems.js                       # Individual poem builder
 ├── date-utils.js                        # Date format utilities
+├── poem-render.js                       # Shared renderer (fragment + full page)
 ├── poem-to-yaml.js                      # Converter script
+├── poetic-config.js                     # Shared .poetic-config reader
 ├── serve-static.js                      # Development server
 └── ...
+```
+
+### Standalone poem pages and redirect stubs
+
+Each poem is built as a **full, styled HTML document** at `public/<slug>/index.html` so that
+visiting `/<slug>/` shows a properly styled page linking `poetic.css`, `custom.css`, and
+`poetic.js`. The old flat URL `/<slug>.html` remains as a redirect stub that immediately
+forwards the browser to `./<slug>/` via `<meta http-equiv="refresh">` plus a
+`<link rel="canonical">`.
+
+### Shared Audiomack loader (`public/poetic.js`)
+
+`poetic.js` is a tiny, framework-owned script that replaces the per-poem inline
+`loadAudiomackPlayer` functions that previously appeared once inside every poem fragment.
+A single delegated `click` listener on `document` handles all `.load-audiomack-btn` buttons
+on any page (individual poem pages, `all-poems.html`, and the live dev-server endpoint).
+
+The audio button now uses `data-*` attributes instead of an inline `onclick`:
+
+```html
+<button class="load-audiomack-btn"
+        data-slug="my-poem"
+        data-title="My Poem"
+        data-artist="saltysojourner">🎵 Load Audio Player</button>
+```
+
+Set the Audiomack artist in `.poetic-config`:
+
+```
+audiomack_artist=saltysojourner
 ```
 
 ### Customisation
@@ -150,6 +187,7 @@ Supported keys:
 |-----|---------|-------------|
 | `favicon` | `poetic-logo.svg` | Filename (inside `public/`) of the browser-tab icon |
 | `subtitle` | `My Poems` | Subtitle shown below the site title on `index.html` |
+| `audiomack_artist` | _(none)_ | Audiomack artist slug used for embedded audio players (e.g. `saltysojourner`) |
 | `skip_paths` | _(none)_ | Comma-separated list of framework paths to skip during sync |
 | `auto_sync` | _(off)_ | Set to `true` to enable the hourly scheduled sync workflow |
 | `sync_schedule` | `weekly` | How often the scheduled sync runs: `hourly`, `daily`, or `weekly` |
@@ -159,6 +197,7 @@ Example:
 ```
 favicon=my-icon.png
 subtitle=Warwick Allen's Poems
+audiomack_artist=saltysojourner
 skip_paths=public/poetic-logo.svg
 auto_sync=true
 sync_schedule=hourly
