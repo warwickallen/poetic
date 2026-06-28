@@ -12,25 +12,52 @@ A plain-text poem authoring framework. Write poems in a concise `.poem` format, 
 
 ## Quick start
 
+### 1. Create your own repo
+
+Pick the approach that suits you:
+
+| | **Template** *(recommended)* | **Clone + rewire** | **Fork** |
+|---|---|---|---|
+| Setup | Click **Use this template** on GitHub, then clone your new repo | Clone poetic, then change `origin` | Fork on GitHub, then clone your fork |
+| After setup | `origin` already points to your repo | Must rewire `origin` before you can push | `origin` points to your fork |
+| Git history | Clean slate | Inherits poetic's history | Inherits poetic's history |
+| Auto-sync | Yes, once `.poetic-version` is in place | Yes, once `.poetic-version` is in place | Yes, once `.poetic-version` is in place |
+| Best for | Writing poems | Writing poems | Contributing to poetic itself |
+
+**Clone + rewire steps:**
+
 ```bash
 git clone https://github.com/warwickallen/poetic.git my-poems
 cd my-poems
-npm install
+git remote set-url origin https://github.com/YOUR-USERNAME/my-poems.git
 ```
 
-1. Copy `src/poems/poem/_example.poem` to `src/poems/poem/my-poem.poem` and edit it.
-2. Build:
+**Fork caveat:** If you open a pull request against `poetic` from a fork that also contains your personal poems, those poems appear in the diff. A separate repo (template or clone + rewire) keeps your collection and framework contributions cleanly apart.
 
-   ```bash
-   npm run build
-   ```
+### 2. Install and initialise
 
-3. View locally:
+```bash
+npm install
+bash scripts/sync-framework.sh   # creates .poetic-version
+git add .poetic-version
+git commit -m "chore: initialise poetic version tracking"
+git push -u origin main
+```
 
-   ```bash
-   npm start
-   # open http://localhost:8080
-   ```
+`.poetic-version` identifies this repo as a poem collection (as opposed to the framework repo itself) and records which version of the framework you are tracking. It is required for automatic updates to work.
+
+### 3. Enable GitHub Pages
+
+In your repo settings, set Pages source to **GitHub Actions**.
+
+### 4. Write your first poem
+
+```bash
+cp src/poems/poem/_example.poem src/poems/poem/my-poem.poem
+# Edit it, then:
+npm run build
+npm start   # open http://localhost:8080
+```
 
 ## Poem format
 
