@@ -1,4 +1,4 @@
-# Poetic
+# Poetic &nbsp; ![Poetic logo](public/poetic-logo.png)
 
 A plain-text poem authoring framework. Write poems in a concise `.poem` format, build them into HTML, and optionally publish to GitHub Pages.
 
@@ -13,9 +13,9 @@ A plain-text poem authoring framework. Write poems in a concise `.poem` format, 
 ## Usage Example
 
 The Poetic framework is used to build the [Fragments & Unity][Fragments & Unity - all] site ([source][Fragments & Unity]).
-Across the two poems [My Shepherd] and [At The End of Myself], many of the `.poem` syntax features are demonstrated.
+Across the two poems, [My Shepherd] and [At The End of Myself], many of the `.poem` syntax features are demonstrated.
 
-[Fragments & Unity]:https://warwick-allen.github.io/fragments-and-unity/
+[Fragments & Unity]:https://github.com/Warwick-Allen/fragments-and-unity/
 [Fragments & Unity - all]:https://warwick-allen.github.io/fragments-and-unity/all-poems.html
 [My Shepherd]:https://warwick-allen.github.io/fragments-and-unity/all-poems.html#poem-my-shepherd
 [At The End of Myself]:https://warwick-allen.github.io/fragments-and-unity/all-poems.html#poem-at-the-end-of-myself
