@@ -1,7 +1,32 @@
 #!/bin/bash -e
+#
+# edit-poem — find a .poem file by name pattern, open it in vi, and rebuild
+# if the file was modified.
+#
+# Usage:
+#   scripts/edit-poem [PATTERN]
+#
+# PATTERN is matched case-insensitively against .poem file paths under src/poems/.
+# Shell-style anchors are recognised within the pattern itself:
+#   ^PATTERN   match only from the start of the path
+#   PATTERN$   match only at the end (before the implicit .poem extension)
+#   ^PATTERN$  exact basename match
+# Without anchors, PATTERN matches as a substring anywhere in the path.
+#
+# Exit codes:
+#    0   poem opened (build triggered automatically if the file was modified)
+#   -1   no poems matched PATTERN
+#    N   N > 1 poems matched (ambiguous); titles printed to stderr; no file opened
+#
+# Examples:
+#   scripts/edit-poem shepherd       # open the poem whose path contains "shepherd"
+#   scripts/edit-poem ^my-poem$      # open my-poem.poem exactly
 
 cd $(git rev-parse --show-toplevel)
 re="$1"
+# Build a regex from the pattern, respecting optional ^ / $ anchors.
+# Note: ${#a} evaluates to 0 because 'a' is unset; ${re:0-1} is therefore
+# equivalent to ${re: -1}, which extracts the last character of $re.
 [ "${re:0:1}"     == "^" ] && re="${re:1}"    || re=".*$re"
 [ "${re:${#a}-1}" == "$" ] && re="${re:0:-1}" || re="$re.*"
 re="${re}.poem"
@@ -11,7 +36,9 @@ case $count in
   0)  echo "No poems matched /$re/i" >&2
       rv=-1
       ;;
-  1)  md5() { md5sum "${poems[$i]}" | cut -d' ' -f1; }
+  1)  # $i is unset here; bash treats an empty array subscript as 0,
+      # so ${poems[$i]} resolves to ${poems[0]} — the only match.
+      md5() { md5sum "${poems[$i]}" | cut -d' ' -f1; }
       md5=$(md5)
       vi "${poems[$i]}"
       [ "$(md5)" == "$md5" ] || npm run build

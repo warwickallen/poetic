@@ -1,0 +1,241 @@
+# Shell scripts reference
+
+This document covers the shell scripts in `scripts/`.  All scripts are
+framework-owned and synced from upstream poetic — do not hand-edit them if
+you want changes to survive the next sync.  For local overrides, add the path
+to `skip_paths` in `.poetic-config`.
+
+---
+
+## `scripts/edit-poem`
+
+Open a `.poem` file in vi by name, and automatically rebuild if the file is
+saved with changes.
+
+### Usage
+
+```bash
+scripts/edit-poem [PATTERN]
+```
+
+`PATTERN` is matched case-insensitively against `.poem` file paths under
+`src/poems/`.  Shell-style anchors are supported within the pattern:
+
+| Pattern form | Matches |
+|---|---|
+| `PATTERN` | any path containing PATTERN as a substring |
+| `^PATTERN` | paths starting with PATTERN |
+| `PATTERN$` | paths ending with PATTERN (before `.poem`) |
+| `^PATTERN$` | exact basename match |
+
+### Examples
+
+```bash
+scripts/edit-poem shepherd      # open the poem whose path contains "shepherd"
+scripts/edit-poem ^my-poem$     # open my-poem.poem exactly
+scripts/edit-poem ^at           # open any poem whose filename starts with "at"
+```
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Poem opened (build triggered automatically if the file was modified) |
+| `-1` | No poems matched PATTERN |
+| `N > 1` | N poems matched (ambiguous); titles listed to stderr; no file opened |
+
+### Notes
+
+- Rebuilding is triggered by comparing the md5 checksum of the file before and
+  after editing.  If you exit vi without saving, no rebuild occurs.
+- The editor is always `vi`.  To use a different editor, call it directly and
+  run `npm run build` manually.
+
+---
+
+## `scripts/poem-to-raw.sh`
+
+Extract plain-text versions of all `.poem` files and write a browsable HTML
+index.
+
+> **Prefer the npm command.**  The canonical implementation is
+> `src/tools/poem-to-raw.js`, invoked by `npm run poem-to-raw`.  This shell
+> script is a legacy equivalent kept for reference and fallback use.
+
+### Usage
+
+```bash
+bash scripts/poem-to-raw.sh
+# or:
+npm run poem-to-raw
+```
+
+### Outputs
+
+| Path | Description |
+|---|---|
+| `raw/<title>` | Plain-text rendering of each poem |
+| `public/raw/index.html` | HTML index linking to raw files on GitHub |
+
+The raw files are also linked from the GitHub repository's `raw/` directory at
+`https://raw.githubusercontent.com/<owner>/<repo>/refs/heads/main/raw/`.
+
+### What it strips
+
+The script processes each poem through an awk pass followed by a perl pass:
+
+- **Header** — the title, author, and date lines (everything before the first
+  blank line) are skipped.
+- **Canonical-form divider** — lines matching `====` stop processing for that
+  poem (content below the divider is the canonical form only).
+- **Section labels** — `{Verse 1}`, `{Chorus}`, etc. are removed.
+- **Block comments** — `<<#` … `#>>` blocks are suppressed.
+- **Variable definitions** — `={name}=value` lines are captured and removed
+  from the output; `${name}` references are substituted inline.
+- **Inline markup** — pronunciation guides and other `.poem` markup wrappers
+  are collapsed to their display text.
+- **HTML entities** — `&mdash;`, `&hellip;`, `&ldquo;`, etc. are converted to
+  their Unicode equivalents (—, …, ", …).
+- **Numeric character references** — `&#NN;` and `&#xHH;` are decoded.
+
+Files whose names begin with `_` are skipped (they are partial/private files).
+
+---
+
+## `scripts/setup-linux.sh`
+
+Wrapper that activates nvm before running a command.
+
+### The problem it solves
+
+On Windows Subsystem for Linux (WSL), the system `PATH` typically includes the
+Windows `node` and `npm` binaries before any Linux-installed ones.  Invoking
+`npm run build` directly can therefore call the Windows versions, which fail
+silently on Linux-style paths.  This wrapper loads nvm so the correct Linux
+Node.js is active, then exec's the rest of the command line.
+
+On macOS or native Linux without nvm, the script is a transparent pass-through
+— nvm is only loaded if `~/.nvm/nvm.sh` exists.
+
+### Usage
+
+```bash
+./scripts/setup-linux.sh npm run build
+./scripts/setup-linux.sh npm run build:all
+./scripts/setup-linux.sh <any command>
+```
+
+### Notes
+
+- The script uses `exec`, so it replaces the current shell process — there is
+  no overhead from an extra shell layer.
+- The nvm version selected is the default (`nvm use node`), i.e. the most
+  recently installed version.  To pin a version, set a `.nvmrc` file in the
+  repo root.
+
+---
+
+## `scripts/sync-framework.sh`
+
+Pull framework files from the upstream `warwickallen/poetic` repository into
+this repo.
+
+The poetic framework owns the build tools, templates, editor integrations, and
+documentation.  Running this script fetches the requested ref, checks out each
+framework-owned path at that ref, and updates `.poetic-version`.
+
+### Usage
+
+```bash
+scripts/sync-framework.sh                  # sync using ref in .poetic-version
+scripts/sync-framework.sh --ref v1.2.0     # sync from a specific tag
+scripts/sync-framework.sh --ref main       # sync from latest main
+```
+
+### Arguments
+
+| Flag | Description |
+|---|---|
+| `--ref <ref>` | Git ref (tag or branch) to sync from.  Overrides `.poetic-version`. |
+
+### Workflow
+
+1. Adds (or updates) a `poetic` git remote pointing at the upstream repo.
+2. Fetches all tags and branches from `poetic` (unauthenticated, so CI auth
+   headers do not interfere with the public repo fetch).
+3. Resolves the requested ref — first as a remote branch, then as a tag.
+4. Checks out each framework-owned path at the resolved commit.
+5. Skips any paths listed in `skip_paths` in `.poetic-config`.
+6. Updates `.poetic-version` with the synced channel, ref, and full commit hash.
+
+### After syncing
+
+```bash
+git diff --staged                        # review what changed
+git commit -m "chore: sync framework from poetic <ref>"
+```
+
+If `scripts/sync-framework.sh` itself was updated during the sync, re-run the
+script once more to pick up the new version before committing.
+
+### Skipping paths
+
+To keep a local override of a framework file, add it to `.poetic-config`:
+
+```
+skip_paths=public/poetic.css,public/poetic-logo.svg
+```
+
+Comma-separated paths are compared exactly against the framework path list.
+
+### Notes on CI authentication
+
+GitHub Actions injects a repo-scoped `GITHUB_TOKEN` as an HTTP extra-header
+that matches all `github.com` requests by prefix.  The script clears this
+header for the one fetch command that targets the public poetic repo, so the
+request goes out unauthenticated.  This is a no-op locally where the key is
+not set.
+
+---
+
+## `scripts/remove-trailing-spaces.sh`
+
+Remove trailing whitespace from all git-tracked files in the repository.
+
+### Usage
+
+```bash
+bash scripts/remove-trailing-spaces.sh
+```
+
+### Behaviour
+
+- Iterates over all files tracked by git (`git ls-files`).
+- Skips files that do not exist on disk (e.g. deleted but still tracked).
+- **Skips `.poem` files** — trailing double-spaces in `.poem` files are
+  meaningful (they signal a forced line break in the `.poem` syntax).
+- Modifies files in place and prints a summary of what changed.
+
+### Output
+
+```
+Removing trailing spaces from tracked files...
+
+✓ Modified: src/tools/build-poems.js
+✓ Modified: docs/BUILD.md
+
+----------------------------------------
+Processed: 42 files
+Modified:  2 files
+----------------------------------------
+Note: Changes have been made. Review with 'git diff' before committing.
+```
+
+### Notes
+
+- Run this before committing if your editor does not strip trailing spaces
+  automatically.
+- A pre-commit hook or CI check may call this script; no manual invocation is
+  needed in that case.
+- Changes are written to the working tree only — you still need to `git add`
+  and `git commit` them.

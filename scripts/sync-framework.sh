@@ -1,10 +1,22 @@
 #!/bin/bash
-# Syncs framework files from warwickallen/poetic into this repo.
+#
+# sync-framework.sh — pull framework files from warwickallen/poetic into this repo.
+#
+# The poetic framework owns the build tools, templates, editor integrations, and
+# documentation.  This script fetches the requested ref from the upstream repo,
+# checks out each framework-owned path at that ref, and updates .poetic-version.
+#
+# Paths listed in skip_paths inside .poetic-config are left untouched, allowing
+# users to maintain local overrides of specific framework files.
 #
 # Usage:
 #   scripts/sync-framework.sh                  # sync using ref in .poetic-version
 #   scripts/sync-framework.sh --ref v1.2.0     # sync from a specific tag
 #   scripts/sync-framework.sh --ref main       # sync from latest main
+#
+# After running, review staged changes with `git diff --staged`, then commit.
+# If sync-framework.sh itself was updated during the sync, re-run the script to
+# pick up the new version before committing.
 
 set -euo pipefail
 
