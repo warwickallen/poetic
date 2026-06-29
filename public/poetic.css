@@ -16,10 +16,24 @@
   display: none;
 }
 
-h1.poem-title {
+h1.poem-title,
+h2.poem-title {
   border-bottom: 2px solid #f0f0f0;
   margin: 1ex 0 2ex;
   padding-bottom: 0.5ex;
+}
+
+.poem-section {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-bottom: 30px;
+  padding: 30px;
+}
+
+.poem-content {
+  color: #444;
+  line-height: 1.6;
 }
 
 .song-segment {
