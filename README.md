@@ -261,6 +261,7 @@ To switch channels, edit `.poetic-version` and change the `channel` line.
 - [`docs/YAML-SCHEMA.md`](docs/YAML-SCHEMA.md) — YAML schema for poems
 - [`docs/POEM-TO-YAML.md`](docs/POEM-TO-YAML.md) — converter documentation
 - [`docs/BUILD.md`](docs/BUILD.md) — GitHub Pages deployment details
+- [`docs/SCRIPTS.md`](docs/SCRIPTS.md) — shell scripts reference (`edit-poem`, `sync-framework.sh`, etc.)
 - [`docs/VIM-SYNTAX.md`](docs/VIM-SYNTAX.md) — Vim syntax highlighting setup
 - [`docs/QUICKSTART-VIM.md`](docs/QUICKSTART-VIM.md) — quick Vim setup guide
 
