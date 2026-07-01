@@ -69,7 +69,7 @@ mixin poemContent
           if versionIndex < versions.length - 1
             br
       else
-        p(style="color: #999; font-style: italic;") No content available
+        p.no-content No content available
     //- end poem-body
 
     if audio
@@ -83,7 +83,7 @@ mixin poemContent
               data-title=title
               data-artist=audiomackArtist
             ) 🎵 Load Audio Player
-            div(id=`audiomack-player--${slug}` class="audiomack-player" style="display: none;")
+            div(id=`audiomack-player--${slug}` class="audiomack-player hidden")
           br
         if audio.suno
           |  (
@@ -140,7 +140,7 @@ mixin poemContent
             != processedSynopsis
           //- end analysis-syno
 
-          div(id=`analysis-full--${slug}` style="display: none")
+          div(id=`analysis-full--${slug}` class="hidden")
             h2 Analysis of <em>#{title}</em>
             - const processedFull = processAnalysisText(analysis.full)
             != processedFull

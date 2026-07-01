@@ -269,7 +269,7 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg", audiomack
         concatenatedContent += `
         <div class="poem-section" id="${poem.anchor}">
             <h2 class="poem-title"><a href="${poem.slug}/">${poem.title}</a></h2>
-            <div class="poem-content"><p style="color: #999; font-style: italic;">Error rendering poem: ${err.message}</p></div>
+            <div class="poem-content"><p class="no-content">Error rendering poem: ${err.message}</p></div>
         </div>`;
       }
     });

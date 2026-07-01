@@ -6,10 +6,10 @@ document.addEventListener('click', function (e) {
   const { slug, title, artist } = btn.dataset;
   const player = document.getElementById('audiomack-player--' + slug);
   if (!player) return;
-  btn.style.display = 'none';
+  btn.classList.add('hidden');
   const iframe = document.createElement('iframe');
   iframe.src = 'https://audiomack.com/embed/' + artist + '/song/' + slug;
   iframe.scrolling = 'no'; iframe.width = '100%'; iframe.height = '252';
   iframe.frameBorder = '0'; iframe.title = title || '';
-  player.style.display = 'block'; player.appendChild(iframe);
+  player.classList.remove('hidden'); player.appendChild(iframe);
 });
