@@ -1,7 +1,7 @@
 /* Poem site CSS */
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 .sr-only {

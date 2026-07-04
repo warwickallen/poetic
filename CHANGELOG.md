@@ -9,6 +9,19 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.2] — 2026-07-04
+
+### Fixed
+
+- The `.hidden` utility now forces `display: none !important`, so elements
+  hidden via JavaScript actually disappear even when another rule sets their
+  `display`. The postscript "See more"/"See less" toggle set its own
+  `display: inline-block` in a later, equal-specificity rule, which overrode
+  `.hidden` on source order; the toggle therefore stayed visible even when the
+  runtime gate suppressed it, so it appeared on notes with nothing meaningful
+  to reveal. This completes the [1.1.1] fix, whose suppression decision was
+  correct but had no visual effect.
+
 ## [1.1.1] — 2026-07-04
 
 ### Fixed
