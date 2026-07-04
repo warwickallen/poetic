@@ -21,6 +21,18 @@ test('_example.poem matches the golden fixture', () => {
   );
 });
 
+test('_minimal.poem matches the golden fixture', () => {
+  const actual = convertPoemToYaml(path.join(POEM_DIR, '_minimal.poem'));
+  const goldenPath = path.join(__dirname, 'golden', '_minimal.yaml');
+  const golden = fs.readFileSync(goldenPath, 'utf8');
+  assert.strictEqual(
+    actual,
+    golden,
+    'Output drifted from test/golden/_minimal.yaml. If intentional, regenerate it:\n' +
+      "  node -e \"process.stdout.write(require('./src/tools/poem-to-yaml').convertPoemToYaml('src/poems/poem/_minimal.poem'))\" > test/golden/_minimal.yaml"
+  );
+});
+
 test('every poem in the corpus converts without throwing', () => {
   const files = fs
     .readdirSync(POEM_DIR)

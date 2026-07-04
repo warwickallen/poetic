@@ -16,7 +16,7 @@ and optionally publish to GitHub Pages.
 >  
 > The pipeline runs from `.poem` to page  
 > with YAML, Pug, and scripts between;  
-> just six lines set a valid stage—  
+> just four lines set a valid stage—  
 > the workflow's tidy, calm, and clean.  
 >  
 > Use the template, start your drafting,  

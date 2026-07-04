@@ -737,8 +737,7 @@ The absolute minimal valid poem file looks like this:
 Title
 1970-01-01
 
-{Verse}
-Some lines
+A line of verse
 ```
 
 That's it! All dividers are optional if there's no subsequent content.
