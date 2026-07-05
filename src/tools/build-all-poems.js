@@ -355,14 +355,26 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg", audiomack
             const sections = Array.from(document.querySelectorAll('.poem-section'));
             const scope = { titles: true, lyrics: true };
 
+            // textContent ignores <br> entirely (unlike innerText, it inserts no
+            // whitespace), so adjacent lines can fuse into one word at a <br>
+            // boundary (e.g. "cavernous<br>Now" -> "cavernousNow", which
+            // spuriously contains "snow"). Replace <br> with a space on a clone
+            // before reading textContent so line boundaries can't fuse words.
+            function textOf(el) {
+                if (!el) return '';
+                const clone = el.cloneNode(true);
+                clone.querySelectorAll('br').forEach((br) => br.replaceWith(' '));
+                return clone.textContent;
+            }
+
             const index = sections.map((section) => {
                 const titleEl = section.querySelector('.poem-title a');
                 const bodyEl = section.querySelector('.poem-body');
                 const link = document.querySelector('#poemTableBody a[href="#' + section.id + '"]');
                 return {
                     section: section,
-                    title: (titleEl ? titleEl.textContent : '').toLowerCase(),
-                    body: (bodyEl ? bodyEl.textContent : '').toLowerCase(),
+                    title: textOf(titleEl).toLowerCase(),
+                    body: textOf(bodyEl).toLowerCase(),
                     date: section.getAttribute('data-date') || '',
                     row: link ? link.closest('tr') : null
                 };

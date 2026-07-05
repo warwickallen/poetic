@@ -7,6 +7,15 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] — 2026-07-05
+
+### Fixed
+
+- All-poems text filter: matching lyrics no longer fuses adjacent lines into
+  one word at a `<br>` boundary (e.g. "cavernous" followed by "Now" on the
+  next line reading as "cavernousNow" — a false-positive match for "snow").
+  Line breaks are now normalised to spaces before the poem body is searched.
+
 ## [2.2.1] — 2026-07-05
 
 ### Fixed
