@@ -7,6 +7,15 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] — 2026-07-05
+
+### Fixed
+
+- `sync-blogger.js` no longer runs its removal pass when `--only <slug>` is set.
+  A filtered run only populates the "current" set with the targeted poem, so the
+  removal pass previously treated every other managed post as removed and
+  drafted (or deleted) them. Removals are now computed on full syncs only.
+
 ## [2.0.0] — 2026-07-05
 
 ### Changed

@@ -522,27 +522,34 @@ async function main() {
       }
     }
 
-    // Handle removed poems
-    const removed = selectRemoved(posts, currentSlugs, opts.label);
-    for (const post of removed) {
-      if (opts.removed === 'draft') {
-        if (args.dryRun) {
-          console.log(`[draft] ${post.title}`);
-        } else {
-          await revertPost(opts.blogId, token, post.id);
-          console.log(`Drafted: ${post.title}`);
+    // Handle removed poems — only on a full sync. With --only, the loop above
+    // skipped every other poem, so currentSlugs holds just the targeted slug and
+    // every other managed post would look "removed". Removals cannot be computed
+    // from a filtered run, so skip the pass entirely when --only is set.
+    if (args.only) {
+      console.log(`Skipping removal pass (--only ${args.only}): removals are only computed on a full sync.`);
+    } else {
+      const removed = selectRemoved(posts, currentSlugs, opts.label);
+      for (const post of removed) {
+        if (opts.removed === 'draft') {
+          if (args.dryRun) {
+            console.log(`[draft] ${post.title}`);
+          } else {
+            await revertPost(opts.blogId, token, post.id);
+            console.log(`Drafted: ${post.title}`);
+          }
+          handled++;
+        } else if (opts.removed === 'delete') {
+          if (args.dryRun) {
+            console.log(`[delete] ${post.title}`);
+          } else {
+            await deletePost(opts.blogId, token, post.id);
+            console.log(`Deleted: ${post.title}`);
+          }
+          handled++;
         }
-        handled++;
-      } else if (opts.removed === 'delete') {
-        if (args.dryRun) {
-          console.log(`[delete] ${post.title}`);
-        } else {
-          await deletePost(opts.blogId, token, post.id);
-          console.log(`Deleted: ${post.title}`);
-        }
-        handled++;
+        // 'keep' → do nothing
       }
-      // 'keep' → do nothing
     }
 
     const dryRunSuffix = args.dryRun ? ' (dry-run)' : '';
