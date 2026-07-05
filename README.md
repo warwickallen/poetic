@@ -37,10 +37,20 @@ and optionally publish to GitHub Pages.
 
 The Poetic framework is used to build the
 [Fragments & Unity][Fragments & Unity - all] site ([source][Fragments & Unity - source]).
-Across the two poems,
-[My Shepherd]          ([source][My Shepherd - source]) and
-[At The End of Myself] ([source][At The End of Myself - source]),
-many of the `.poem` syntax features are demonstrated.
+Most of the `.poem` syntax features are demonstrated
+across these four poems:
+- [At The End of Myself]
+  ([source][At The End of Myself - source])
+- [Divide and Lose]
+  ([source][Divide and Lose - source])
+- [Easter Joy (Immanuel Is His Name)]
+  ([source][Easter Joy (Immanuel Is His Name) - source])
+- [My Shepherd (2026)]
+  ([source][My Shepherd (2026) - source])
+
+When poems are created or updated in the
+[Fragments & Unity repository][Fragments & Unity - source], the Poetic framework
+automatically publishes those changes to the [Framgents & Unity Blogger site].
 
 [At The End of Myself]:
 https://warwick-allen.github.io/fragments-and-unity/all-poems.html#poem-at-the-end-of-myself
@@ -48,17 +58,32 @@ https://warwick-allen.github.io/fragments-and-unity/all-poems.html#poem-at-the-e
 [At The End of Myself - source]:
 https://github.com/Warwick-Allen/fragments-and-unity/blob/main/src/poems/poem/at-the-end-of-myself.poem
 
+[Divide and Lose]:
+https://warwick-allen.github.io/fragments-and-unity/all-poems.html#poem-divide-and-lose
+
+[Divide and Lose - source]:
+https://github.com/Warwick-Allen/fragments-and-unity/blob/main/src/poems/poem/divide-and-lose.poem
+
+[Easter Joy (Immanuel Is His Name)]:
+https://warwick-allen.github.io/fragments-and-unity/all-poems.html#poem-easter-joy-immanuel-is-his-name
+
+[Easter Joy (Immanuel Is His Name) - source]:
+https://github.com/Warwick-Allen/fragments-and-unity/blob/main/src/poems/poem/easter-joy-immanuel-is-his-name.poem
+
 [Fragments & Unity - all]:
 https://warwick-allen.github.io/fragments-and-unity/all-poems.html
 
 [Fragments & Unity - source]:
 https://github.com/Warwick-Allen/fragments-and-unity/#fragments--unity--poems-by-warwick-allen
 
-[My Shepherd]:
-https://warwick-allen.github.io/fragments-and-unity/all-poems.html#poem-my-shepherd
+[Framgents & Unity Blogger site]:
+https://fragments-and-unity.blogspot.com/
 
-[My Shepherd - source]:
-https://github.com/Warwick-Allen/fragments-and-unity/blob/main/src/poems/poem/my-shepherd.poem
+[My Shepherd (2026)]:
+https://warwick-allen.github.io/fragments-and-unity/all-poems.html#poem-my-shepherd-2026
+
+[My Shepherd (2026) - source]:
+https://github.com/Warwick-Allen/fragments-and-unity/blob/main/src/poems/poem/my-shepherd-2026.poem
 
 ## Prerequisites
 
