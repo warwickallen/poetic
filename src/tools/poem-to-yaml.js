@@ -155,15 +155,16 @@ class PoemParser {
 
   /**
    * Expand a `${name}` reference found at `str[at]` (where `str[at] === '$'`
-   * and `str[at + 1] === '{'`). Looks for the next `}` anywhere later in
-   * `str` (variable names cannot contain `{`, `}`, `$`, `<`, `>`, so this
-   * mirrors the substituteVariables() regex, which needs no nesting/escaping
-   * support). Returns `{ text, nextIndex }` with the substituted (or, if
-   * undefined, literal) text and the index just past the closing `}`, or
-   * null if there is no `}` later in the string (in which case `$` is not
-   * treated as starting a `${...}` token, and is instead ordinary literal
-   * text - this matches substituteVariables()'s regex, which simply does not
-   * match an unterminated `${`).
+   * and `str[at + 1] === '{'`). Looks for the next `}` anywhere later in `str`
+   * (variable names cannot contain `{`, `}`, `$`, `<`, `>`, so the first `}`
+   * closes the reference; a `:-default` fallback likewise cannot contain `}`).
+   * The isolated `${...}` token is handed to substituteVariables(), so nested
+   * references and the `:-default` fallback are resolved. Returns
+   * `{ text, nextIndex }` with the substituted (or, if undefined, literal) text
+   * and the index just past the closing `}`, or null if there is no `}` later
+   * in the string (in which case `$` is not treated as starting a `${...}`
+   * token, and is instead ordinary literal text - matching substituteVariables(),
+   * which likewise leaves an unterminated `${` untouched).
    */
   expandVarAt(str, at) {
     const closeIdx = str.indexOf('}', at + 2);
@@ -412,7 +413,8 @@ class PoemParser {
       if (singleLineMatch) {
         const varName = singleLineMatch[1];
         const varValue = singleLineMatch[2];
-        // Store value with nested variables unsubstituted for now
+        this.checkReservedName(varName);
+        // Store the value raw; nested ${...} are resolved lazily, at use.
         this.variables.set(varName, varValue);
         i++;
         continue; // Don't add to newLines (remove from content)
@@ -422,6 +424,7 @@ class PoemParser {
       const multiLineMatch = line.match(/^=\{([^}]+)\}<<=.*$/);
       if (multiLineMatch) {
         const varName = multiLineMatch[1];
+        this.checkReservedName(varName);
         const contentLines = [];
         i++; // Move past the start line
 
@@ -449,84 +452,143 @@ class PoemParser {
 
     this.lines = newLines;
 
-    // Now substitute variables within variable definitions (for nesting)
-    // and convert multi-line variables to strings
-    for (const [varName, varValue] of this.variables.entries()) {
-      if (Array.isArray(varValue)) {
-        // Multi-line variable - substitute in each line, but NOT inside literal blocks
-        const substitutedLines = [];
-        let inLiteralBlock = false;
-        for (const line of varValue) {
-          if (line.trim() === '<<<') {
-            inLiteralBlock = true;
-            substitutedLines.push(line);
-          } else if (line.trim() === '>>>') {
-            inLiteralBlock = false;
-            substitutedLines.push(line);
-          } else if (inLiteralBlock) {
-            // Don't substitute variables inside literal blocks
-            substitutedLines.push(line);
-          } else {
-            // Substitute variables outside literal blocks
-            substitutedLines.push(this.substituteVariables(line));
-          }
-        }
-        this.variables.set(varName, substitutedLines);
-      } else {
-        // Single-line variable - just substitute
-        this.variables.set(varName, this.substituteVariables(varValue));
-      }
-    }
-
-    // Now expand any standalone variable references into multiple lines
-    const expandedLines = [];
-    for (const line of this.lines) {
-      // Check if line is a standalone variable reference: ${varname}
-      const standaloneMatch = line.trim().match(/^\$\{([^}]+)\}$/);
-      if (standaloneMatch) {
-        const varName = standaloneMatch[1];
-        if (this.variables.has(varName)) {
-          const varValue = this.variables.get(varName);
-          if (Array.isArray(varValue)) {
-            // Multi-line variable - expand to multiple lines
-            expandedLines.push(...varValue);
-          } else {
-            // Single-line variable - substitute normally
-            expandedLines.push(this.substituteVariables(line));
-          }
-        } else {
-          // Variable not defined
-          this.usedBeforeDefined.add(varName);
-          expandedLines.push(line);
-        }
-      } else {
-        // Not a standalone variable reference - keep as-is (substitution happens during parsing)
-        expandedLines.push(line);
-      }
-    }
-
-    this.lines = expandedLines;
+    // Expand standalone multi-line variable references (a `${name}` alone on its
+    // line) into that variable's body lines, recursively. Values are kept raw:
+    // every ${...} reference (nested or not) is resolved exactly once, at its
+    // point of use, by substituteVariables() during the structural parse. This
+    // gives nested references late (dynamic) binding. Single-line and inline
+    // references are left untouched here for that later resolution.
+    this.lines = this.expandStandaloneRefs(this.lines, []);
   }
 
   /**
-   * Substitute variables in text
+   * Recursively expand standalone multi-line variable references (`${name}` on
+   * its own line) into the referenced variable's raw body lines. `stack` guards
+   * against reference cycles (a self-referential multi-line variable is left as
+   * a literal line with a warning rather than looping forever). Lines that are
+   * not standalone references to a multi-line variable are passed through
+   * unchanged.
+   */
+  expandStandaloneRefs(lines, stack) {
+    const out = [];
+    for (const line of lines) {
+      const m = line.trim().match(/^\$\{([^}]+)\}$/);
+      if (m) {
+        const name = m[1];
+        const value = this.variables.get(name);
+        if (Array.isArray(value)) {
+          if (stack.includes(name)) {
+            console.warn(`Warning: Variable reference cycle detected at '\${${name}}'; left unexpanded.`);
+            out.push(line);
+          } else {
+            out.push(...this.expandStandaloneRefs(value, stack.concat(name)));
+          }
+          continue;
+        }
+        // Single-line variable, undefined, or a `%{...}`-style token: leave the
+        // line for substituteVariables() (or the render stage) to handle.
+      }
+      out.push(line);
+    }
+    return out;
+  }
+
+  /**
+   * Throw if `name` uses the reserved eager/early-binding form (a leading `!`,
+   * e.g. `={!name}=`). The behaviour is reserved for a future release; parsing
+   * it now is an error rather than a silently-accepted ordinary name.
+   */
+  checkReservedName(name) {
+    if (name[0] === '!') {
+      throw new Error(
+        `Reserved syntax: eager/early-binding variable '={!${name.slice(1)}}=' ` +
+        `is reserved but not yet implemented (a leading '!' in a variable name is reserved).`
+      );
+    }
+  }
+
+  /**
+   * Substitute author `${...}` variable references in `text`.
+   *
+   *   ${name}          - the variable's value (its last definition in the file).
+   *                      Nested ${...} inside that value are expanded
+   *                      recursively, at use (late/dynamic binding).
+   *   ${name:-default} - `default` when `name` is undefined.
+   *   \${...}          - a literal `${...}` (the leading backslash is consumed).
+   *
+   * A reference cycle resolves to the literal `${...}` and warns (no infinite
+   * loop). Context references (`%{...}`) are NOT touched here - they are left
+   * for the render stage. The reserved eager form `${!name}` throws.
    */
   substituteVariables(text) {
-    // Match ${variable_name} patterns
-    return text.replace(/\$\{([^}]+)\}/g, (match, varName) => {
-      if (this.variables.has(varName)) {
-        const varValue = this.variables.get(varName);
-        // If it's an array (multi-line variable), join with newlines
-        if (Array.isArray(varValue)) {
-          return varValue.join('\n');
-        }
-        return varValue;
-      } else {
-        // Variable not defined - track it and leave as literal
-        this.usedBeforeDefined.add(varName);
-        return match;
+    return this.expandVars(text, []);
+  }
+
+  /**
+   * Core scanner for substituteVariables(). Walks `text` left to right so that
+   * `\${...}` escaping is honoured exactly once; `stack` carries the chain of
+   * variables currently being expanded, for cycle detection.
+   */
+  expandVars(text, stack) {
+    let out = '';
+    let i = 0;
+    const n = text.length;
+    while (i < n) {
+      const c = text[i];
+      if (c === '\\' && text[i + 1] === '$' && text[i + 2] === '{') {
+        // Escaped reference: emit a literal "${"; the name and closing "}"
+        // that follow are ordinary characters and are copied verbatim.
+        out += '${';
+        i += 3;
+        continue;
       }
-    });
+      if (c === '$' && text[i + 1] === '{') {
+        const close = text.indexOf('}', i + 2);
+        if (close === -1) { out += c; i++; continue; }
+        const inner = text.slice(i + 2, close);
+        i = close + 1;
+        out += inner === '' ? '${}' : this.resolveVar(inner, stack);
+        continue;
+      }
+      out += c;
+      i++;
+    }
+    return out;
+  }
+
+  /**
+   * Resolve the interior of one `${...}` reference (`inner` is the text between
+   * the braces): apply the `:-default` fallback, cycle detection, and recursive
+   * expansion of the resulting value.
+   */
+  resolveVar(inner, stack) {
+    if (inner[0] === '!') {
+      throw new Error(
+        `Reserved syntax: eager/early-binding reference '\${${inner}}' is reserved ` +
+        `but not yet implemented (a leading '!' in a variable name is reserved).`
+      );
+    }
+    let name = inner;
+    let fallback = null;
+    const sep = inner.indexOf(':-');
+    if (sep !== -1) {
+      name = inner.slice(0, sep);
+      fallback = inner.slice(sep + 2);
+    }
+    if (stack.includes(name)) {
+      console.warn(`Warning: Variable reference cycle detected at '\${${name}}'; left unexpanded.`);
+      return '${' + inner + '}';
+    }
+    if (this.variables.has(name)) {
+      let value = this.variables.get(name);
+      if (Array.isArray(value)) value = value.join('\n');
+      return this.expandVars(value, stack.concat(name));
+    }
+    if (fallback !== null) {
+      return this.expandVars(fallback, stack);
+    }
+    this.usedBeforeDefined.add(name);
+    return '${' + inner + '}';
   }
 
   /**
@@ -588,15 +650,18 @@ class PoemParser {
   }
 
   /**
-   * Render a block's inner lines to an HTML fragment based on its tag:
-   *   markdown/md -> GFM (with variable substitution)
-   *   anything else -> raw passthrough (no substitution, no conversion)
+   * Render a block's inner lines to an HTML fragment based on its tag. Author
+   * `${...}` variables are substituted in every block (a block suppresses
+   * Markdown rendering, not variable substitution):
+   *   markdown/md -> GFM
+   *   anything else -> raw passthrough (no Markdown conversion)
    */
   renderBlock(tag, lines) {
+    const substituted = lines.map(l => this.substituteVariables(l));
     if (tag === 'markdown' || tag === 'md') {
-      return renderGfm(lines.map(l => this.substituteVariables(l)).join('\n'));
+      return renderGfm(substituted.join('\n'));
     }
-    return lines.join('\n');
+    return substituted.join('\n');
   }
 
   /**
@@ -1130,8 +1195,10 @@ class PoemParser {
       return { content: this.renderBlock(tag, lines) };
     }
 
-    // Raw passthrough
-    const content = lines.join('\n');
+    // Raw passthrough: author ${...} variables are still substituted (a block
+    // suppresses Markdown, not variable substitution); renderBlock() applies it
+    // for the raw tag without any Markdown conversion.
+    const content = this.renderBlock(tag, lines);
 
     // Check if this is a $ref line
     if (content.trim().includes('$ref:')) {

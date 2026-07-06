@@ -60,7 +60,7 @@ test('<<<markdown>>> block in a segment renders GFM with variable substitution',
   assert.match(verse.parts[2].lines, /after the block/);
 });
 
-test('bare <<< block passes raw HTML through verbatim (no substitution)', () => {
+test('bare <<< block passes raw HTML through without Markdown, but substitutes variables', () => {
   const segments = parseSegments([
     '={who}=World',
     '{Verse}',
@@ -70,7 +70,8 @@ test('bare <<< block passes raw HTML through verbatim (no substitution)', () => 
     '>>>',
   ]);
   const htmlPart = segments[0].parts.find((p) => p.type === 'html');
-  assert.strictEqual(htmlPart.html, '<div class="x">raw ${who}</div>');
+  // A block suppresses Markdown rendering, not variable substitution.
+  assert.strictEqual(htmlPart.html, '<div class="x">raw World</div>');
 });
 
 test('segments without blocks keep the simple `lines` shape', () => {

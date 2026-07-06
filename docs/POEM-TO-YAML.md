@@ -88,12 +88,18 @@ Escaped characters with `\` are preserved as literals.
 Comment blocks delimited by `<<#` ... `#>>` are automatically removed during parsing.
 
 ### Variables
-Variable syntax is documented in the specification but not yet implemented in this parser. The syntax includes:
+The converter resolves author variables while producing YAML:
 - Single-line variables: `={token}= value`
 - Multi-line variables: `={token}<<= ... =>>`
-- Variable substitution: `${token}`
+- Substitution: `${token}`, with a `${token:-default}` fallback and a `\${...}`
+  escape. Nested references are resolved at use (dynamic binding) and are
+  substituted inside literal blocks (a block suppresses Markdown, not
+  substitution).
 
-See `docs/POEM-SYNTAX.md` and `src/poems/poem/_example.poem` for complete variable documentation.
+Build-time context references (`%{slug}`, `%{title}`, `%{author}`, `%{date}`)
+use a `%` sigil and are left untouched here; they are resolved later, at the
+render stage. See `docs/POEM-SYNTAX.md` and `src/poems/poem/_example.poem` for
+complete variable documentation.
 
 ## Implementation Notes
 

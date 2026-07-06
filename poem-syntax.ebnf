@@ -405,12 +405,33 @@ variable_name_char = ? any character except "{", "}", "$", "<", ">" and space at
 
 variable_value = { ? any character except newline ? } ;
 
-variable_substitution = "${", variable_name, "}" ;
+variable_substitution = "\${"                                (* literal "${" *)
+                      | "${", variable_reference_body, "}" ;
+
+context_variable_substitution = "\%{"                        (* literal "%{" *)
+                              | "%{", variable_reference_body, "}" ;
+
+variable_reference_body = variable_name, [ ":-", default_value ] ;
+
+default_value = { ? any character except "}" ? } ;
 
 (* Note: Variable definitions must be anchored to the start of a line.
-   Variables are file-scoped and processed before markup conversion.
    Variable names must start with a letter or digit and cannot contain
    {, }, $, <, > characters, and cannot end with a space.
+
+   Two substitution tiers exist, distinguished by sigil:
+     - "${name}"  - an author variable, defined with "={name}=" / "={name}<<=";
+                    resolved when the .poem is converted to YAML.
+     - "%{name}"  - a build-time CONTEXT variable, provided by the renderer from
+                    a fixed set (slug, title, author, date); resolved at the
+                    render stage, so it survives YAML conversion untouched.
+   Either tier accepts a ":-default" fallback and a leading backslash escape
+   ("\${...}" / "\%{...}") that yields the literal token.
+
+   A leading "!" in a variable name (e.g. "={!name}=" or "${!name}") is RESERVED
+   for a future eager/early-binding form and MUST raise an error until it is
+   implemented; it is not accepted as an ordinary name.
+
    See semantic constraints for complete variable behaviour rules. *)
 
 (* ============================================================================
@@ -629,24 +650,33 @@ leading_whitespace = ( " " | tab ), { " " | tab } ;
    18. Variables can be defined anywhere in the file, except inside literal
        blocks or multi-line variable blocks
 
-   19. Variables are file-scoped
+   19. Author variables share one file-global namespace (there is no lexical
+       scope). A .shared.poem file, when present, is prepended before
+       processing, so its definitions join the same namespace
 
-   20. If a variable is used before it is defined, no substitution occurs;
-       ${undefined} remains as literal text (parsers should emit a warning)
+   20. If a variable is used without being defined, no substitution occurs and
+       ${name} remains as literal text (parsers should emit a warning) - unless
+       a ":-default" fallback is supplied, in which case the fallback is used
 
-   21. Variables may be redefined; the old value is clobbered
+   21. Variables may be redefined; a reference uses the variable's last
+       definition in the file
 
    22. Variable definition lines do not appear in output and do not count
        as content lines in their containing section
 
-   23. Variables may be nested: A variable definition may include ${...}
-       references, which are substituted when the outer variable is defined.
-       Nesting may be of any depth. Self-referential definitions are allowed
-       (e.g., ={a}=foo then ={a}=${a}bar expands ${a} to foobar)
+   23. Variables may be nested: a variable's value may itself contain ${...}
+       references. These are resolved recursively each time the variable is
+       USED (late/dynamic binding) - so redefining an inner variable changes
+       later expansions of an outer variable that references it. Nesting may be
+       of any depth; a reference cycle is left as a literal ${name} and warned
+       (no infinite loop)
 
    24. Variables are processed for markup after substitution
 
-   25. Variables cannot be used inside literal blocks
+   25. A literal block (<<<...>>>) suppresses Markdown rendering of its content,
+       not variable substitution: author ${...} variables ARE substituted
+       inside literal blocks (context %{...} references likewise survive to the
+       render stage regardless of any enclosing block)
 
    26. Variable whitespace is retained: For single-line variables, everything
        after the second "=" is included. For multi-line variables, everything

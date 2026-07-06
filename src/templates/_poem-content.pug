@@ -117,7 +117,8 @@ mixin poemContent
           if postscriptItem.label
             div.postscript-label!= postscriptItem.label
           if postscriptItem.content
-            - const processedContent = postscriptItem.content.replace(/\$\{slug\}/g, slug)
+            //- %{...} context variables were already resolved in poem-render.js.
+            - const processedContent = postscriptItem.content
             if preview
               - const toggleId = `${postscriptId}--more`
               input.postscript-toggle-cb.hidden(id=toggleId type="checkbox")

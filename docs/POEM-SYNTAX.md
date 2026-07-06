@@ -616,25 +616,61 @@ To use a variable's value, reference it with the substitution syntax:
 ${variable_name}
 ```
 
+A `${...}` reference is resolved when the `.poem` file is converted to YAML.
+
+#### Default values
+
+A reference may supply a fallback for when the variable is not defined:
+
+```
+${variable_name:-default text}
+```
+
+If `variable_name` is defined, its value is used; otherwise the text after `:-`
+(up to the closing `}`) is used.
+
+#### Escaping
+
+Write `\${...}` to emit a literal `${...}`; the leading backslash is consumed:
+
+```
+\${not a variable}   ->   ${not a variable}
+```
+
+### Context (build-time) variables
+
+Alongside author `${...}` variables, a small fixed set of **context variables**
+is supplied by the build and referenced with a `%` sigil:
+
+```
+%{slug}   %{title}   %{author}   %{date}
+```
+
+Context references are resolved at the **render stage** (when HTML is generated),
+*after* author variables and regardless of any enclosing literal block — so
+`%{slug}` works inside a raw `<<<...>>>` block (for example, an interactive
+`<script>` that needs the poem's slug). They accept the same `:-default`
+fallback and a `\%{...}` escape. An unknown context name is left as literal text.
+
 ### Variable Rules
 
 1. **Definition Location**: Variables can be defined anywhere in the file, including in the preamble before the header, except inside literal blocks or multi-line variable blocks.
 
-2. **Scope**: Variables are file-scoped.
+2. **Namespace**: Author variables share one file-global namespace; there is no lexical scope. `.shared.poem`, when present, is prepended before processing, so its definitions join the same namespace.
 
-3. **Forward References**: If a variable is used before it is defined, no substitution occurs. The text `${undefined}` will remain as literal text in the output. Parsers should emit a warning when this occurs, but should not raise an exception.
+3. **Undefined references**: If a variable is used without being defined, no substitution occurs and `${name}` remains as literal text (a warning is emitted, not an error) — unless a `:-default` fallback is supplied, in which case the fallback is used.
 
-4. **Redefinition**: Variables may be redefined. The old value will be clobbered.
+4. **Redefinition**: Variables may be redefined; a reference uses the variable's last definition in the file.
 
 5. **Output**: Variable definition lines do not appear in the output. They do not count as content lines in their containing section.
 
-6. **Nesting**: Variables may be nested. A variable definition may include a `${...}` reference. The inner variable reference will be substituted when the outer variable is defined (not when the outer variable is used). Nesting may be of any depth.
-   - Example: If `={a}=foo`, and later `={b}=${a}bar`, and later `={c}=${b}baz`, then `${c}` expands to `foobarbaz`.
-   - Self-reference: If `={a}=foo`, and later `={a}=${a}bar`, then `${a}` expands to `foobar`.
+6. **Nesting (dynamic binding)**: A variable's value may itself contain `${...}` references. These are resolved recursively each time the variable is *used* (late/dynamic binding), so redefining an inner variable changes later expansions of an outer variable that references it. Nesting may be of any depth.
+   - Example: with `={a}=foo`, `={b}=${a}bar`, and `={c}=${b}baz`, then `${c}` expands to `foobarbaz`.
+   - A reference cycle (e.g. `={a}=${a}`) is left as the literal `${a}` with a warning; it never loops.
 
 7. **Processing Order**: Variables are processed for markup after substitution.
 
-8. **Literal Blocks**: Variables cannot be used inside literal blocks.
+8. **Literal Blocks**: A literal block (`<<<...>>>`) suppresses Markdown rendering of its content, not variable substitution — author `${...}` variables are substituted inside literal blocks.
 
 9. **Structural Blocks in Multi-Line Variables**: Multi-line variables may contain structural elements such as literal blocks (`<<<...>>>`), comment blocks (`<<#...#>>`), and other markers. When a standalone variable reference (e.g., `${variable}` on its own line) is expanded, these structural elements are properly recognised and parsed.
 
@@ -643,6 +679,8 @@ ${variable_name}
    - For multi-line variables, everything after the newline character of the start tag line up to just before the final newline character before the close tag line is included.
 
 11. **Usage in Labels**: Variables may be used inside labels (both {% raw %}`{{...}}`{% endraw %} and `{...}` labels).
+
+12. **Reserved eager form**: A leading `!` in a variable name (`={!name}=` or `${!name}`) is reserved for a future eager/early-binding form and currently raises an error.
 
 ### Complete Example
 

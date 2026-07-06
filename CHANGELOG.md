@@ -7,6 +7,34 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] — 2026-07-06
+
+### Changed
+
+- **Nested variables now use dynamic (late) binding.** A `${...}` reference
+  inside another variable's value is resolved each time the outer variable is
+  *used*, against the referenced variable's current value — so redefining an
+  inner variable (for example, per poem) changes later expansions of a shared
+  variable that references it. **Breaking**: the previous eager/self-reference
+  behaviour is gone; a reference cycle (e.g. `={a}=${a}`) is now left as the
+  literal `${a}` with a warning instead of being resolved.
+- **Literal blocks suppress Markdown, not substitution.** Author `${...}`
+  variables are now substituted inside raw `<<<...>>>` blocks. **Breaking**: to
+  emit a literal `${...}` inside a block, escape it as `\${...}`.
+
+### Added
+
+- **Default values** in a reference: `${name:-default}` uses `default` when
+  `name` is undefined.
+- **Escaping**: `\${...}` (and `\%{...}`) emit a literal `${...}` / `%{...}`.
+- **Build-time context variables** with a `%` sigil — `%{slug}`, `%{title}`,
+  `%{author}`, `%{date}` — resolved at the render stage, so they work anywhere
+  including inside literal blocks (e.g. an interactive `<script>` needing the
+  poem's slug). **Breaking**: the previously hardcoded `${slug}` substitution in
+  postscript content is replaced by `%{slug}`; migrate `${slug}` → `%{slug}`.
+- The eager/early-binding variable form (a leading `!`, e.g. `={!name}=` or
+  `${!name}`) is **reserved** and raises an error until it is implemented.
+
 ## [2.4.0] — 2026-07-06
 
 ### Added
