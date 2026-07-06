@@ -42,7 +42,8 @@ function decodeEntities(text) {
       const code = (ent[1] === 'x' || ent[1] === 'X')
         ? parseInt(ent.slice(2), 16)
         : parseInt(ent.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : match;
+      // Guard the valid Unicode range; String.fromCodePoint throws otherwise.
+      return code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
     }
     const key = ent.toLowerCase();
     return Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, key)
@@ -88,12 +89,16 @@ function segmentToText(segment) {
 // followed by the concatenated version bodies (segments separated by a blank
 // line). `%{...}` context variables are resolved from the poem's own fields.
 function renderPoemText(data, slug) {
+  const title = htmlToPlainText(String(data.title || '')).trim();
+
+  // Context values are substituted into already-decoded plain text, so decode
+  // the poem's own fields too (a title/author may carry HTML entities).
   const ctx = {};
   for (const name of CONTEXT_VAR_NAMES) ctx[name] = data[name];
   ctx.slug = slug;
+  ctx.title = title;
+  if (data.author) ctx.author = htmlToPlainText(String(data.author)).trim();
   if (data.date) ctx.date = formatDateForDisplay(data.date);
-
-  const title = htmlToPlainText(String(data.title || '')).trim();
 
   const versionTexts = [];
   for (const version of data.versions || []) {
@@ -144,7 +149,7 @@ function getRepoTop() {
 function buildIndex(entries, ghSlug) {
   const rawBase = ghSlug
     ? `https://raw.githubusercontent.com/${ghSlug}/refs/heads/main/raw`
-    : '..'; // fall back to a relative link when there is no GitHub remote
+    : '../../raw'; // no GitHub remote: link to the repo-root raw/ dir relatively
   const items = entries
     .map((e) => `    <li><a href="${rawBase}/${e.stem}">${escapeHtml(e.title)}</a></li>`)
     .join('\n');

@@ -34,6 +34,11 @@ test('decodeEntities: named and numeric references become Unicode', () => {
   assert.strictEqual(decodeEntities('&#38;'), '&');
 });
 
+test('decodeEntities: an out-of-range code point is left literal (no crash)', () => {
+  assert.strictEqual(decodeEntities('&#99999999;'), '&#99999999;');
+  assert.strictEqual(decodeEntities('&#x110000;'), '&#x110000;');
+});
+
 test('htmlToPlainText: strips inline tags, keeps text', () => {
   assert.strictEqual(
     htmlToPlainText('a <em>b</em> <strong>c</strong> <s>d</s>'),
@@ -89,6 +94,16 @@ test('%{...} context variables resolve from the poem fields', () => {
   assert.match(out, /slug=my-slug title=Title/);
 });
 
+test('%{title} is decoded to plain text (no HTML entities leak in)', () => {
+  // A title with a smart apostrophe becomes &#8217; in the parsed data; the
+  // context substitution must insert the decoded character, not the entity.
+  const data = parse(['{Verse}', 'ref %{title}']);
+  data.title = 'It&#8217;s Fine';
+  const out = renderPoemText(data, 'title');
+  assert.match(out, /ref It’s Fine/);
+  assert.doesNotMatch(out, /&#8217;/);
+});
+
 // ── Structure of the rendered plain text ────────────────────────────────────
 
 test('renderPoemText: title is dash-underlined and body follows', () => {
@@ -128,8 +143,8 @@ test('buildIndex: links to GitHub raw when a repo slug is known', () => {
   assert.match(html, />My Poem</);
 });
 
-test('buildIndex: escapes titles and falls back to a relative link', () => {
+test('buildIndex: escapes titles and falls back to the repo-root raw path', () => {
   const html = buildIndex([{ stem: 'p', title: 'A & B <x>' }], null);
   assert.match(html, /A &amp; B &lt;x&gt;/);
-  assert.match(html, /href="\.\.\/p"/);
+  assert.match(html, /href="\.\.\/\.\.\/raw\/p"/);
 });
