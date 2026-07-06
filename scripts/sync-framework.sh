@@ -86,7 +86,6 @@ FRAMEWORK_PATHS=(
   .github/workflows/sync-blogger.yml
   scripts/sync-framework.sh
   scripts/edit-poem
-  scripts/poem-to-raw.sh
   scripts/remove-trailing-spaces.sh
   scripts/setup-linux.sh
 )

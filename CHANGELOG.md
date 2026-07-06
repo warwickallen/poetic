@@ -7,6 +7,21 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] — 2026-07-07
+
+### Changed
+
+- **Raw plain-text output (`raw/<stem>`) is now produced by the canonical
+  engine.** `npm run poem-to-raw` parses each poem through the same pipeline as
+  the YAML/HTML build (`src/tools/poem-to-yaml.js`) instead of a separate Perl
+  reimplementation, so the full variable spec — multi-line definitions,
+  nested/late-bound `${name}` references, `${name:-default}` fallbacks,
+  `\${...}` escaping, `.shared.poem` variables, and `%{...}` context variables —
+  is applied to the raw output, matching the HTML. Section labels and opaque
+  embedded blocks (raw HTML, Markdown tables) are omitted from the plain text,
+  and the browsable `public/raw/index.html` escapes poem titles. The previous
+  shell/Perl implementation (`scripts/poem-to-raw.sh`) is removed.
+
 ## [3.0.0] — 2026-07-06
 
 ### Changed

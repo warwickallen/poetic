@@ -1452,7 +1452,13 @@ class PoemParser {
 /**
  * Convert a .poem file to YAML
  */
-function convertPoemToYaml(poemFilePath) {
+/**
+ * Parse a .poem file into a structured poem-data object, prepending the
+ * directory's `.shared.poem` (shared variable definitions) when present. This
+ * is the single canonical parse used by both the YAML pipeline and the raw
+ * plain-text converter, so variable handling stays identical across outputs.
+ */
+function parsePoemFile(poemFilePath) {
   let content = fs.readFileSync(poemFilePath, 'utf8');
 
   // Prepend .shared.poem if it exists in the same directory
@@ -1464,8 +1470,11 @@ function convertPoemToYaml(poemFilePath) {
     content = sharedContent + content;
   }
 
-  const parser = new PoemParser(content);
-  const data = parser.parse();
+  return new PoemParser(content).parse();
+}
+
+function convertPoemToYaml(poemFilePath) {
+  const data = parsePoemFile(poemFilePath);
 
   return yaml.dump(data, {
     lineWidth: -1, // Don't wrap lines
@@ -1540,4 +1549,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { PoemParser, convertPoemToYaml };
+module.exports = { PoemParser, convertPoemToYaml, parsePoemFile };

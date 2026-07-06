@@ -53,56 +53,6 @@ scripts/edit-poem ^at           # open any poem whose filename starts with "at"
 
 ---
 
-## `scripts/poem-to-raw.sh`
-
-Extract plain-text versions of all `.poem` files and write a browsable HTML
-index.
-
-> **This shell script is the authoritative implementation.**
-> `src/tools/poem-to-raw.js` is a thin wrapper that invokes this script so
-> that `npm run poem-to-raw` and the build pipeline work without callers
-> needing to invoke bash directly.
-
-### Usage
-
-```bash
-bash scripts/poem-to-raw.sh
-# or:
-npm run poem-to-raw
-```
-
-### Outputs
-
-| Path | Description |
-|---|---|
-| `raw/<stem>` | Plain-text rendering of each poem (named by source filename stem) |
-| `public/raw/index.html` | HTML index linking to raw files on GitHub |
-
-The raw files are also linked from the GitHub repository's `raw/` directory at
-`https://raw.githubusercontent.com/<owner>/<repo>/refs/heads/main/raw/`.
-
-### What it strips
-
-The script processes each poem through an awk pass followed by a perl pass:
-
-- **Header** — the title, author, and date lines (everything before the first
-  blank line) are skipped.
-- **Canonical-form divider** — lines matching `====` stop processing for that
-  poem (content below the divider is the canonical form only).
-- **Section labels** — `{Verse 1}`, `{Chorus}`, etc. are removed.
-- **Block comments** — `<<#` … `#>>` blocks are suppressed.
-- **Variable definitions** — `={name}=value` lines are captured and removed
-  from the output; `${name}` references are substituted inline.
-- **Inline markup** — pronunciation guides and other `.poem` markup wrappers
-  are collapsed to their display text.
-- **HTML entities** — `&mdash;`, `&hellip;`, `&ldquo;`, etc. are converted to
-  their Unicode equivalents (—, …, ", …).
-- **Numeric character references** — `&#NN;` and `&#xHH;` are decoded.
-
-Files whose names begin with `_` are skipped (they are partial/private files).
-
----
-
 ## `scripts/setup-linux.sh`
 
 Wrapper that activates nvm before running a command.

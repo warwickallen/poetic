@@ -67,7 +67,7 @@ The Blogger template script:
 
 #### Raw extraction script (`src/tools/poem-to-raw.js`)
 
-The `poem-to-raw` step extracts the plain text body from `.poem` source files and writes them to the `raw/` directory at the repository root (skips partial files, removes comments and front-matter delimiters, and normalises common HTML entities). The authoritative implementation is `scripts/poem-to-raw.sh`; `src/tools/poem-to-raw.js` is a thin wrapper that invokes it so the build pipeline can call `npm run poem-to-raw` without shelling out to bash directly. Run it standalone with `npm run poem-to-raw` or let the main `build` sequence invoke it automatically.
+The `poem-to-raw` step extracts the plain-text body of each `.poem` source file to the `raw/` directory at the repository root, and writes a browsable `public/raw/index.html` linking to those files on GitHub. It parses each poem through the same canonical engine as the YAML/HTML pipeline (`src/tools/poem-to-yaml.js`), so variables — including multi-line definitions, `${name}` references, `${name:-default}` fallbacks, `\${...}` escaping, `.shared.poem` variables, and `%{...}` context variables — are handled identically across outputs. The engine's inline HTML markup is then flattened to plain text, common HTML entities are normalised to their Unicode equivalents, section labels and opaque embedded blocks are dropped, and partial files (names beginning with `_` or `.`) are skipped. Run it standalone with `npm run poem-to-raw` or let the main `build` sequence invoke it automatically.
 
 ### Workflow for Updates
 
