@@ -257,3 +257,31 @@ test('empty variable name leaves literal ${} untouched', () => {
   const segments = parseSegments(['{Verse}', '${}'], ['']);
   assert.match(segments[0].lines, /\$\{\}/);
 });
+
+// ── Multi-line variables and ${...} in name positions ───────────────────────
+
+test('multi-line variable with a nested reference expands at use (dynamic, inline)', () => {
+  const segments = parseSegments(['{Seg}', 'use:${m}'], [
+    '={m}<<=',
+    'A ${var1} B',
+    '=>>',
+    '={var1}=a',
+    '',
+  ]);
+  assert.strictEqual(segments[0].lines, 'use:A a B\n');
+});
+
+test('a definition whose name contains ${...} is not a definition (treated as content)', () => {
+  const segments = parseSegments(['{Seg}', '={v${var1}r4}=b', 'v4:${var4}'], ['={var1}=a', '']);
+  // Not recognised as a definition; its ${var1} is substituted as ordinary content...
+  assert.match(segments[0].lines, /=\{var4\}=b/);
+  // ...so the intended variable var4 is never defined and its reference stays literal.
+  assert.match(segments[0].lines, /v4:\$\{var4\}/);
+});
+
+test('a reference with ${...} in the name position closes at the first } (undefined, literal)', () => {
+  const segments = parseSegments(['{Seg}', 'L=${var${var1}r4}'], ['={var1}=a', '']);
+  // Looks up the literal (undefined) name "var${var1"; left as-is, and the inner
+  // ${var1} is NOT resolved.
+  assert.strictEqual(segments[0].lines, 'L=${var${var1}r4}\n');
+});

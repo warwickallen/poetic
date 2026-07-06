@@ -83,6 +83,12 @@ See `.github/workflows/release.yml`. Releases are tagged; consumer repos can pin
 - If you encounter historical language in an existing doc, remove it and move
   the substance to `CHANGELOG.md` if it is significant.
 
+## Tech debt
+
+When you defer work, take a shortcut, or notice a known gap, record it in
+`TECH-DEBT.md` at the repo root — do not leave it only in a commit message or in
+chat. Keep entries short and dated, and delete one when it is resolved.
+
 ## Key docs
 
 | File | Contents |

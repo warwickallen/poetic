@@ -637,6 +637,29 @@ Write `\${...}` to emit a literal `${...}`; the leading backslash is consumed:
 \${not a variable}   ->   ${not a variable}
 ```
 
+Escaping is applied by the variable layer only. Content is then handed to its
+section's markup renderer (the poem-body converter, or Markdown for postscript
+and analysis), which applies its **own** backslash handling. So in those
+contexts a backslash is resolved in two stages — variable substitution first
+(`\${…}` → `${…}`), then markup escaping (e.g. `\\` → `\`, `\$` → `$`). Raw
+`<<<...>>>` blocks are the exception: they get variable substitution but no
+markup layer, so their backslashes are left as written. Author a literal
+backslash accordingly for the context you are in.
+
+#### Names are literal (not interpolated)
+
+A variable name is never itself substituted; there is no computed-name or
+indirection mechanism. A `${...}` that appears in a *name* position is not
+nesting:
+
+- In a **definition**, a name may not contain `$`, `{`, or `}` (see the name
+  rules above), so a line such as `={a${x}b}=v` is not recognised as a
+  definition. It is treated as ordinary content, where any `${x}` in it is
+  substituted normally.
+- In a **reference**, `${...}` closes at the first `}`, so `${a${x}b}` looks up
+  a variable literally named `a${x` (normally undefined) and is left as literal
+  text; the inner `${x}` is not resolved.
+
 ### Context (build-time) variables
 
 Alongside author `${...}` variables, a small fixed set of **context variables**
