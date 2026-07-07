@@ -50,7 +50,7 @@ echo "Fetching from poetic..."
 # resets the accumulated header list, so the fetch goes out unauthenticated
 # (fine for a public repo). Works for single or multiple values, and is a no-op
 # locally where the key isn't set.
-git -c "http.https://github.com/.extraheader=" fetch "$POETIC_REMOTE" --tags --quiet
+git -c "http.https://github.com/.extraheader=" fetch "$POETIC_REMOTE" --tags --force --quiet
 
 # Resolve ref: try remote branch first, then tag
 if POETIC_COMMIT=$(git rev-parse "refs/remotes/$POETIC_REMOTE/$POETIC_REF" 2>/dev/null); then
@@ -89,6 +89,7 @@ FRAMEWORK_PATHS=(
   scripts/edit-poem
   scripts/remove-trailing-spaces.sh
   scripts/setup-linux.sh
+  scripts/check-build-artifacts.sh
 )
 
 # Paths the user has opted to manage locally (a YAML list under skip_paths

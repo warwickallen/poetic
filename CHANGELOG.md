@@ -7,6 +7,19 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`scripts/sync-framework.sh` now syncs `scripts/check-build-artifacts.sh`.**
+  It was missing from `FRAMEWORK_PATHS`, so consumers running `npm run
+  check:build` (including CI, via `.github/workflows/build-poems.yml`) got
+  "No such file or directory" instead of the build-artifact smoke test.
+- **`scripts/sync-framework.sh` no longer aborts silently on a tag conflict.**
+  The upstream tags fetch now passes `--force`, so a consumer's stale cached
+  copy of a poetic tag no longer causes `git fetch` to reject the update and
+  abort the whole script (under `set -e`) with no error message.
+
 ## [4.0.0] — 2026-07-08
 
 ### Changed
