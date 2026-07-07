@@ -1,0 +1,137 @@
+[<<#]=poemTitle
+[This is the canonical example poem: it exercises every syntax feature and]=-
+[doubles as the golden test fixture. This comment block (and the preamble]=-
+[variable definitions below) never appear in the output.]=-
+[#>>]=-
+
+[={author_name}=]=poemVariableDef [A Poet]=poemVariableValue
+[={v2name}=]=poemVariableDef [song arrangement]=poemVariableValue
+[={refrain}<<=]=poemMultiLineVarDef
+[Sing it once, sing it twice]=poemMultiLineVarDef
+[Sing the words of paradise]=poemMultiLineVarDef
+[=>>]=poemMultiLineVarDef
+
+[Example Poem]=-
+[${author_name}]=poemVariableRef
+[1970-01-31]=poemDate
+
+[{{]=poemVersionLabelDelim [ Version 1 ]=poemVersionLabelLineOnly [}}]=poemVersionLabelDelim [  # version label ]=poemVersionLabelLineOnly [(]=poemParamsDelim [optional]=poemParamKey [)]=poemParamsDelim [; this trailing comment is ignored]=poemVersionLabelLineOnly
+
+[{]=poemSegmentLabelDelim [Stanza 1]=poemSegmentLabelLineOnly [}]=poemSegmentLabelDelim [  # segment label ]=poemSegmentLabelLineOnly [(]=poemParamsDelim [optional]=poemParamKey [)]=poemParamsDelim
+[These are the lines]=-
+[   with leading indentation preserved]=-
+[of ]=- [*stanza*]=poemEmphasis [ one, with ]=- [_emphasis_]=poemEmphasis [, ]=- [**]=poemEmphasis [strong*]=poemStrong [*]=poemEmphasis [, and ]=- [~struck~]=poemStrikethrough [ words.]=-
+[A ]=- ["double-quoted"]=poemSmartDoubleQuote [ phrase and a ]=- [`single-quoted`]=poemSmartSingleQuote [ one,]=-
+[an en]=- [--]=poemEnDash [dash, an em]=- [---]=poemEmDash [dash, an ampersand &, an apostrophe's tail.]=-
+
+[{]=poemSegmentLabelDelim [Stanza 2]=poemSegmentLabelLineOnly [}]=poemSegmentLabelDelim
+[A ]=- [[link]=poemLink [|]=poemLinkPipe [example.com]]=poemLink [ and a ]=- [/.highlight{highlighted span}]=poemSpan [,]=-
+[with escaped ]=- [\*]=poemEscaped [asterisks]=- [\*]=poemEscaped [ and a literal ]=- [\-\-\-]=poemEscaped [ triple-hyphen.]=-
+[First line, with a hard line break here,]=- [  ]=poemTrailingSpaces
+[and the line that follows it.]=-
+
+[>]=poemQuoteOperator [ A block-quoted couplet,]=-
+[>]=poemQuoteOperator [ two lines within one quote.]=-
+
+[----]=poemDividerMark [  # divider between versions]=poemDividerLineTrailing
+
+[{{]=poemVersionLabelDelim [ Version 2 ]=poemVersionLabelLineOnly [(]=poemParamsDelim [${]=poemParams [v2name]=poemParamKey [}]=poemParams [)]=poemParamsDelim [ ]=poemVersionLabelLineOnly [}}]=poemVersionLabelDelim [  # a variable used inside a label]=poemVersionLabelLineOnly
+
+[{]=poemSegmentLabelDelim [Verse 1]=poemSegmentLabelLineOnly [}]=poemSegmentLabelDelim
+[${refrain}]=poemVariableRef
+
+[{]=poemSegmentLabelDelim [Verse with embedded table]=poemSegmentLabelLineOnly [}]=poemSegmentLabelDelim
+[The structural beats are:]=-
+[<<<markdown]=Delimiter
+[| Section | Bars |]=poemLiteralMarkdown
+[|---------|------|]=poemLiteralMarkdown
+[| Verse   | 8    |]=poemLiteralMarkdown
+[| Chorus  | 4    |]=poemLiteralMarkdown
+[>>>]=Delimiter
+[and the verse resumes after the table.]=-
+
+[{]=poemSegmentLabelDelim [Interactive note]=poemSegmentLabelLineOnly [}]=poemSegmentLabelDelim
+[Raw HTML between bare <<< and >>> passes through untouched:]=-
+[<<<]=poemLiteralBlock
+[<button type="button" onclick="alert('Hi!')">Press me</button>]=poemLiteralBlock
+[>>>]=poemLiteralBlock
+
+[<<# A comment block: everything between the markers is removed.]=poemComment
+[This explanatory note never appears in the output.]=poemComment
+[#>>]=poemComment
+
+[====]=poemEndMarkerMark [  # end of versions]=poemEndMarkerLineTrailing
+
+[Audiomack]=poemAudioKeyword
+[Suno:]=poemSunoKeyword [ s/SongLink12345678]=poemSunoLine
+
+[====]=poemEndMarkerMark [  # end of audio]=poemEndMarkerLineTrailing
+
+[{]=poemSegmentLabelDelim [Postscript]=poemSegmentLabelLineOnly [}]=poemSegmentLabelDelim [  # postscript prose is GitHub-Flavoured Markdown]=poemSegmentLabelLineOnly
+[A postscript may use ]=- [**]=poemEmphasis [bold*]=poemStrong [*]=poemEmphasis [, ]=- [_italic_]=poemEmphasis [, a ]=- [`code span`]=poemSmartSingleQuote [, a]=-
+[[Markdown link]]=poemLink [(]=poemParamsDelim [https]=poemParamKey [://]=poemParams [example]=poemParamKey [.]=poemParams [com]=poemParamKey [)]=poemParamsDelim [, and a bullet list:]=-
+
+[- first point]=-
+[- second point]=-
+
+[----]=poemDividerMark [  # divider between postscript notes]=poemDividerLineTrailing
+
+[<<<]=poemLiteralBlock
+[  - $ref: "_shared.yaml#/disclaimer"]=poemLiteralBlock
+[>>>]=poemLiteralBlock
+
+[====]=poemEndMarkerMark [  # end of postscript]=poemEndMarkerLineTrailing
+
+[{Synopsis}  # the analysis synopsis (optional)]=poemAnalysisLabel
+
+[A one-paragraph synopsis with ]=poemAnalysis [_]=markdownItalicDelimiter [emphasis]=markdownItalic [_]=markdownItalicDelimiter [ and a smart---dash.]=poemAnalysis
+
+[{Full}  # the full analysis, also GitHub-Flavoured Markdown]=poemAnalysisLabel
+
+[#]=markdownH1Delimiter [ Top-Level Heading]=markdownH1
+
+[A paragraph beneath the heading, with ]=poemAnalysis [**]=markdownBoldDelimiter [bold]=markdownBold [**]=markdownBoldDelimiter [ and ]=poemAnalysis [`]=markdownCodeDelimiter [inline code]=markdownCode [`]=markdownCodeDelimiter [.]=poemAnalysis
+
+[##]=markdownH2Delimiter [ Sub-Heading]=markdownH2
+
+[An unordered list, with nesting:]=poemAnalysis
+
+[-]=markdownListMarker [ alpha]=poemAnalysis
+[-]=markdownListMarker [ bravo]=poemAnalysis
+[    -]=markdownListMarker [ bravo-one]=poemAnalysis
+[    -]=markdownListMarker [ bravo-two]=poemAnalysis
+[-]=markdownListMarker [ charlie]=poemAnalysis
+
+[An ordered list:]=poemAnalysis
+
+[1.]=markdownOrderedListMarker [ first]=poemAnalysis
+[2.]=markdownOrderedListMarker [ second]=poemAnalysis
+
+[A table:]=poemAnalysis
+
+[| Device   | Effect   |]=poemAnalysis
+[|----------|----------|]=poemAnalysis
+[| Anaphora | emphasis |]=poemAnalysis
+[| Chiasmus | balance  |]=poemAnalysis
+
+[A blockquote containing ~~strikethrough~~:]=poemAnalysis
+
+[> ]=markdownBlockquote [To strive, to seek, to find.]=poemAnalysis
+
+[A fenced code block:]=poemAnalysis
+
+[```]=markdownCodeDelimiter
+[let answer = 42;]=markdownCode
+[```]=markdownCodeDelimiter
+
+[====  # end of analysis]=poemEndMarkerMark
+
+[# The Metadata section (optional) holds labels (#tag) and directives (%name key:value).]=poemHeading1
+[# A line like this one - '#' followed by whitespace - is an ordinary comment, not a label.]=poemHeading1
+
+[#]=poemLabelMark [reflection]=poemLabel
+[#]=poemLabelMark [nature]=poemLabel
+
+[%example.directive]=poemDirective [ ]=- [key:value]=poemDirectiveAttr [  ]=- [# illustrative only]=poemDirectiveComment
+
+[====]=poemEndMarkerLineOnly
