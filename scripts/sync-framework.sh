@@ -121,34 +121,34 @@ if [ -z "${POETIC_RESYNCED:-}" ] && ! is_skipped "$SELF_PATH"; then
 fi
 
 FRAMEWORK_PATHS=(
-  src/tools
-  src/templates
-  src/song-handlers.yaml
-  editors
+  .github/workflows/build-poems.yml
+  .github/workflows/sync-blogger.yml
+  .github/workflows/sync-framework.yml
   docs
+  editors
   examples
-  test
-  poem-syntax.ebnf
   package.json
-  src/poems/poem/_example.poem
-  src/poems/poem/_params-example.poem
-  src/poems/poem/_minimal.poem
-  src/poems/yaml/_example.yaml
-  src/poems/yaml/_params-example.yaml
-  src/poems/yaml/_minimal.yaml
-  src/poems/yaml/_shared.yaml
+  poem-syntax.ebnf
+  public/poetic-footer.html
+  public/poetic-logo.svg
   public/poetic.css
   public/poetic.js
-  public/poetic-logo.svg
-  public/poetic-footer.html
-  .github/workflows/build-poems.yml
-  .github/workflows/sync-framework.yml
-  .github/workflows/sync-blogger.yml
-  scripts/sync-framework.sh
+  scripts/check-build-artifacts.sh
   scripts/edit-poem
   scripts/remove-trailing-spaces.sh
   scripts/setup-linux.sh
-  scripts/check-build-artifacts.sh
+  scripts/sync-framework.sh
+  src/poems/poem/_example.poem
+  src/poems/poem/_minimal.poem
+  src/poems/poem/_params-example.poem
+  src/poems/yaml/_example.yaml
+  src/poems/yaml/_minimal.yaml
+  src/poems/yaml/_params-example.yaml
+  src/poems/yaml/_shared.yaml
+  src/song-handlers.yaml
+  src/templates
+  src/tools
+  test
 )
 
 echo "Syncing from poetic @ $POETIC_REF (${POETIC_COMMIT:0:8})..."
