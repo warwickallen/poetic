@@ -7,6 +7,24 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`--commit` flag for `scripts/sync-framework.sh`.** Automatically commits
+  the staged sync using the script's suggested message
+  (`chore: sync framework from poetic <ref>`), instead of leaving it staged
+  for manual review.
+
+### Changed
+
+- **`scripts/sync-framework.sh` now syncs itself first.** If the script
+  changed upstream (e.g. a new framework path was added to it), it re-runs
+  the updated copy before syncing anything else, so newly added paths are
+  picked up in the same run instead of needing a second manual re-run.
+- **`.poetic-version` is staged automatically** by `scripts/sync-framework.sh`
+  alongside the other synced files, rather than being left unstaged.
+
 ## [4.1.1] — 2026-07-08
 
 ### Added

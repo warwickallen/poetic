@@ -9,27 +9,35 @@
 # Paths listed in skip_paths inside .poetic-config.yaml are left untouched,
 # allowing users to maintain local overrides of specific framework files.
 #
+# This script syncs itself first. If scripts/sync-framework.sh changed upstream
+# (e.g. a new path was added to FRAMEWORK_PATHS below), it re-execs the updated
+# copy before syncing anything else, so the run picks up the current list
+# instead of a stale one.
+#
 # Usage:
 #   scripts/sync-framework.sh                  # sync using ref in .poetic-version
 #   scripts/sync-framework.sh --ref v1.2.0     # sync from a specific tag
 #   scripts/sync-framework.sh --ref main       # sync from latest main
+#   scripts/sync-framework.sh --commit         # also commit the staged sync
 #
-# After running, review staged changes with `git diff --staged`, then commit.
-# If sync-framework.sh itself was updated during the sync, re-run the script to
-# pick up the new version before committing.
+# After running, review staged changes with `git diff --staged`, then commit
+# (or pass --commit to have the script commit them with its suggested message).
 
 set -euo pipefail
 
 POETIC_URL="https://github.com/warwickallen/poetic.git"
 POETIC_REMOTE="poetic"
 VERSION_FILE=".poetic-version"
+SELF_PATH="scripts/sync-framework.sh"
 
 DEFAULT_REF=$(grep '^ref=' "$VERSION_FILE" 2>/dev/null | cut -d= -f2 || echo main)
 POETIC_REF="$DEFAULT_REF"
+AUTO_COMMIT=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --ref) POETIC_REF="$2"; shift 2;;
+    --commit) AUTO_COMMIT=true; shift;;
     *) echo "Unknown argument: $1" >&2; exit 1;;
   esac
 done
@@ -60,6 +68,56 @@ elif POETIC_COMMIT=$(git rev-parse "refs/tags/$POETIC_REF" 2>/dev/null); then
 else
   echo "Error: ref '$POETIC_REF' not found in $POETIC_URL" >&2
   exit 1
+fi
+
+# Paths the user has opted to manage locally (a YAML list under skip_paths
+# in .poetic-config.yaml, e.g.:
+#   skip_paths:
+#     - public/poetic.css
+SKIP_PATHS=()
+if [ -f .poetic-config.yaml ]; then
+  while IFS= read -r skip_path; do
+    SKIP_PATHS+=("$skip_path")
+  done < <(awk '
+    /^skip_paths:/ { in_list=1; next }
+    in_list && /^[[:space:]]*-[[:space:]]/ {
+      sub(/^[[:space:]]*-[[:space:]]*/, "");
+      gsub(/^[\"'"'"']|[\"'"'"']$/, "");
+      print;
+      next
+    }
+    in_list && /^[^[:space:]]/ { in_list=0 }
+  ' .poetic-config.yaml)
+fi
+
+is_skipped() {
+  local candidate="$1"
+  for skip_path in "${SKIP_PATHS[@]}"; do
+    [ "$candidate" = "$skip_path" ] && return 0
+  done
+  return 1
+}
+
+# Sync this script first. If it changed upstream (e.g. FRAMEWORK_PATHS below
+# grew a new entry), re-exec the updated copy so the rest of the sync runs
+# with the current list rather than a stale one. POETIC_RESYNCED guards
+# against re-execing more than once per run.
+if [ -z "${POETIC_RESYNCED:-}" ] && ! is_skipped "$SELF_PATH"; then
+  SELF_TMP=$(mktemp)
+  cp "$SELF_PATH" "$SELF_TMP"
+  git checkout "$POETIC_COMMIT" -- "$SELF_PATH" 2>/dev/null || true
+  SELF_CHANGED=false
+  cmp -s "$SELF_TMP" "$SELF_PATH" || SELF_CHANGED=true
+  rm -f "$SELF_TMP"
+  if $SELF_CHANGED; then
+    echo "sync-framework.sh changed upstream — re-running the updated version..."
+    export POETIC_RESYNCED=1
+    if $AUTO_COMMIT; then
+      exec bash "$SELF_PATH" --ref "$POETIC_REF" --commit
+    else
+      exec bash "$SELF_PATH" --ref "$POETIC_REF"
+    fi
+  fi
 fi
 
 FRAMEWORK_PATHS=(
@@ -93,37 +151,14 @@ FRAMEWORK_PATHS=(
   scripts/check-build-artifacts.sh
 )
 
-# Paths the user has opted to manage locally (a YAML list under skip_paths
-# in .poetic-config.yaml, e.g.:
-#   skip_paths:
-#     - public/poetic.css
-SKIP_PATHS=()
-if [ -f .poetic-config.yaml ]; then
-  while IFS= read -r skip_path; do
-    SKIP_PATHS+=("$skip_path")
-  done < <(awk '
-    /^skip_paths:/ { in_list=1; next }
-    in_list && /^[[:space:]]*-[[:space:]]/ {
-      sub(/^[[:space:]]*-[[:space:]]*/, "");
-      gsub(/^[\"'"'"']|[\"'"'"']$/, "");
-      print;
-      next
-    }
-    in_list && /^[^[:space:]]/ { in_list=0 }
-  ' .poetic-config.yaml)
-fi
-
 echo "Syncing from poetic @ $POETIC_REF (${POETIC_COMMIT:0:8})..."
 for path in "${FRAMEWORK_PATHS[@]}"; do
-  skip=false
-  for skip_path in "${SKIP_PATHS[@]}"; do
-    if [ "$path" = "$skip_path" ]; then
-      skip=true
-      break
-    fi
-  done
-  if $skip; then
+  if is_skipped "$path"; then
     echo "  skipped $path (local override)"
+    continue
+  fi
+  if [ "$path" = "$SELF_PATH" ]; then
+    echo "  synced  $path (self, synced first)"
     continue
   fi
   if git checkout "$POETIC_COMMIT" -- "$path" 2>/dev/null; then
@@ -135,13 +170,16 @@ done
 
 current_channel=$(grep '^channel=' "$VERSION_FILE" 2>/dev/null | cut -d= -f2 || echo releases)
 printf 'channel=%s\nref=%s\ncommit=%s\n' "$current_channel" "$POETIC_REF" "$POETIC_COMMIT" > "$VERSION_FILE"
+git add "$VERSION_FILE"
 
 echo ""
+COMMIT_MESSAGE="chore: sync framework from poetic $POETIC_REF"
 if git diff --staged --quiet; then
   echo "Done. Already up to date — no changes to commit."
+elif $AUTO_COMMIT; then
+  git commit -m "$COMMIT_MESSAGE"
+  echo "Done. Committed: $COMMIT_MESSAGE"
 else
   echo "Done. Review staged changes with: git diff --staged"
-  echo "Commit with: git commit -m 'chore: sync framework from poetic $POETIC_REF'"
-  echo ""
-  echo "If scripts/sync-framework.sh itself was updated, re-run to pick up the new version."
+  echo "Commit with: git commit -m '$COMMIT_MESSAGE'"
 fi

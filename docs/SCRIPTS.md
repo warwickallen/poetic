@@ -101,6 +101,7 @@ framework-owned path at that ref, and updates `.poetic-version`.
 scripts/sync-framework.sh                  # sync using ref in .poetic-version
 scripts/sync-framework.sh --ref v1.2.0     # sync from a specific tag
 scripts/sync-framework.sh --ref main       # sync from latest main
+scripts/sync-framework.sh --commit         # also commit the staged sync
 ```
 
 ### Arguments
@@ -108,6 +109,7 @@ scripts/sync-framework.sh --ref main       # sync from latest main
 | Flag | Description |
 |---|---|
 | `--ref <ref>` | Git ref (tag or branch) to sync from.  Overrides `.poetic-version`. |
+| `--commit` | Commit the staged sync automatically, using the script's suggested message. |
 
 ### Workflow
 
@@ -115,19 +117,26 @@ scripts/sync-framework.sh --ref main       # sync from latest main
 2. Fetches all tags and branches from `poetic` (unauthenticated, so CI auth
    headers do not interfere with the public repo fetch).
 3. Resolves the requested ref — first as a remote branch, then as a tag.
-4. Checks out each framework-owned path at the resolved commit.
-5. Skips any paths listed in `skip_paths` in `.poetic-config.yaml`.
-6. Updates `.poetic-version` with the synced channel, ref, and full commit hash.
+4. Syncs `scripts/sync-framework.sh` itself first. If it changed upstream (e.g.
+   a new framework path was added to it), re-runs the updated copy before
+   syncing anything else, so the rest of this run already has the current
+   path list.
+5. Checks out each remaining framework-owned path at the resolved commit.
+6. Skips any paths listed in `skip_paths` in `.poetic-config.yaml`.
+7. Updates and stages `.poetic-version` with the synced channel, ref, and full
+   commit hash.
+8. If `--commit` was passed and there are staged changes, commits them.
 
 ### After syncing
+
+Without `--commit`:
 
 ```bash
 git diff --staged                        # review what changed
 git commit -m "chore: sync framework from poetic <ref>"
 ```
 
-If `scripts/sync-framework.sh` itself was updated during the sync, re-run the
-script once more to pick up the new version before committing.
+With `--commit`, this happens automatically once the sync completes.
 
 ### Skipping paths
 
