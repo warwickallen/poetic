@@ -1,8 +1,8 @@
-[<<#]=poemTitle
-[This is the canonical example poem: it exercises every syntax feature and]=-
-[doubles as the golden test fixture. This comment block (and the preamble]=-
-[variable definitions below) never appear in the output.]=-
-[#>>]=-
+[<<#]=poemComment
+[This is the canonical example poem: it exercises every syntax feature and]=poemComment
+[doubles as the golden test fixture. This comment block (and the preamble]=poemComment
+[variable definitions below) never appear in the output.]=poemComment
+[#>>]=poemComment
 
 [={author_name}=]=poemVariableDef [A Poet]=poemVariableValue
 [={v2name}=]=poemVariableDef [song arrangement]=poemVariableValue
@@ -11,7 +11,7 @@
 [Sing the words of paradise]=poemMultiLineVarDef
 [=>>]=poemMultiLineVarDef
 
-[Example Poem]=-
+[Example Poem]=poemTitle
 [${author_name}]=poemVariableRef
 [1970-01-31]=poemDate
 
@@ -124,7 +124,7 @@
 [let answer = 42;]=markdownCode
 [```]=markdownCodeDelimiter
 
-[====  # end of analysis]=poemEndMarkerMark
+[====]=poemEndMarkerMark [  # end of analysis]=poemEndMarkerLineTrailing
 
 [# The Metadata section (optional) holds labels (#tag) and directives (%name key:value).]=poemHeading1
 [# A line like this one - '#' followed by whitespace - is an ordinary comment, not a label.]=poemHeading1

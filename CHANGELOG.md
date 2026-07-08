@@ -7,6 +7,22 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Vim syntax highlighting of the poem title and the final analysis marker.**
+  The title (`poemTitle`) was hard-coded to highlight line 1, so a poem with a
+  preamble comment block or variable definitions before the header had its
+  title highlighting land on the wrong line (and stole that line from the
+  comment/variable-definition highlighting). It now matches the actual title —
+  the first line of the header after the optional preamble — located by the
+  grammar rather than a fixed line number. Separately, the `====` marker that
+  closes the analysis section now splits into the marker and its trailing
+  `# comment` (`poemEndMarkerMark` + `poemEndMarkerLineTrailing`), matching how
+  every other `====  # comment` line is highlighted. Both are editor-cosmetic
+  (no effect on build output).
+
 ## [4.3.1] — 2026-07-08
 
 ### Fixed

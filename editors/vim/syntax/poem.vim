@@ -133,8 +133,17 @@ syn match poemEndMarkerLineOnly "^====$" nextgroup=poemSongService skipwhite ski
 syn match poemEndMarkerLineTrailing "^====\s\+.*$" contains=poemEndMarkerMark nextgroup=poemSongService skipwhite skipnl skipempty
 syn match poemEndMarkerMark "^====" contained
 
-" Header section (first 3 lines)
-syn match poemTitle "\%1l.*$"
+" Header section. The title is the first line of the header, which follows the
+" optional preamble (blank lines, variable definitions, and comment blocks) --
+" so it is not necessarily line 1. Match it by grammar rather than line number:
+" the first non-preamble line that sits on a preamble boundary (start of file,
+" or immediately after a blank line, a single-line variable definition, a
+" multi-line-variable close, or a comment-block close) and is followed by the
+" header's optional author line and mandatory date line. The leading negative
+" lookahead keeps a preamble line (e.g. a variable definition at the very top of
+" the file) from being taken as the title, and contains=poemVariableRef keeps a
+" ${var} reference in the title highlighted.
+syn match poemTitle "\%(\%^\|\%(^\%(\s*\|={\w\+}=.*\|=>>.*\|#>>.*\)\n\)\@<=\)\zs\%(={\|=>>\|#>>\|<<#\)\@!.\+\ze\n\%(.\+\n\)\?\d\{4\}-\d\{2\}-\d\{2\}$" contains=poemVariableRef
 syn match poemDate "^\d\{4\}-\d\{2\}-\d\{2\}$"
 
 " Audio section: each line names a song-service handler (see
@@ -161,9 +170,12 @@ syn match poemSongValue ":\s\+\S.*$" contained
 " label to the optional end-of-analysis ==== marker (or end of file). Defined
 " after the segment-label rules so its region start wins on {Synopsis}/{Full}.
 if !exists('g:poem_no_embedded_languages')
+  " End just before the ==== line (me=s-1) rather than consuming it, so the
+  " marker line is highlighted by the standalone poemEndMarker* rules below --
+  " splitting ==== from its trailing "# comment" like every other marker line.
   syn region poemAnalysis
         \ matchgroup=poemAnalysisLabel start="^{Synopsis}.*$" start="^{Full}.*$"
-        \ matchgroup=poemEndMarkerMark end="^====.*$"
+        \ end="^====.*$"me=s-1
         \ keepend contains=@poemMarkdown,poemAnalysisLabel,poemVariableRef
   " The second label ({Full} after a {Synopsis}) appears inside the region.
   syn match poemAnalysisLabel "^{\%(Synopsis\|Full\)}.*$" contained

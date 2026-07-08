@@ -15,23 +15,6 @@ Where `<id>` is a literal "TD" then the date followed by a zero-padded
 sequential number (starting at 1 for the the first entry of a day). I.e.:
 **TD*YYMMDDNN***
 
-## TD26070802 `poem.vim` title/end-marker highlighting quirks
-
-Discovered while building `test/vim-syntax.test.js`'s golden fixture from
-`src/poems/poem/_example.poem`:
-
-- `poemTitle` is defined as `\%1l.*$` (`editors/vim/syntax/poem.vim:134`) —
-  "whatever is on line 1" — so a poem with a preamble comment block or
-  variable definitions (both supported `.poem` features) gets its title
-  highlighting on the wrong line.
-- The final `====` line in the analysis section is highlighted as one
-  `poemEndMarkerMark` span including its trailing `# comment`, while every
-  other `====  # comment` line splits into separate `poemEndMarkerMark` /
-  `poemEndMarkerLineTrailing` spans.
-
-Both are editor-cosmetic only (no effect on build output). Not fixed here —
-out of scope for the test task that surfaced them.
-
 ## TD26070803 `sync-framework.sh` `is_skipped` breaks on bash < 4.4
 
 `scripts/sync-framework.sh`'s `is_skipped` iterates `"${SKIP_PATHS[@]}"`
