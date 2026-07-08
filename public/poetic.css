@@ -638,9 +638,12 @@ div.analysis {
   font-style: italic;
 }
 
-/* Audiomack Lazy Loading */
+/* Embedded song players (lazy-loaded) and song links.
+   Service-agnostic base classes below; per-service tweaks use the
+   .song-embed--<service> / .song-item--<service> modifiers. Consumers style
+   their own handlers the same way in custom.css. */
 
-.load-audiomack-btn {
+.song-embed-btn {
   background: #001833;
   color: white;
   border: none;
@@ -653,21 +656,36 @@ div.analysis {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.load-audiomack-btn:hover {
+.song-embed-btn:hover {
   background: #0056CC;
 }
 
-.load-audiomack-btn:active {
+.song-embed-btn:active {
   background: #004499;
 }
 
-.audiomack-container {
+.song-embed {
   margin: 10px 0;
 }
 
-.audiomack-player {
+.song-embed-player {
   width: 100%;
 }
+
+.song-embed-player iframe {
+  width: 100%;
+  border: 0;
+}
+
+/* Per-service embedded-player height (the service's natural player size). */
+.song-embed--audiomack .song-embed-player iframe {
+  height: 252px;
+}
+
+/* Parentheses around link-only services are decorative — CSS, not markup — so a
+   consumer can remove them by overriding `content` in custom.css. */
+.song-item--suno .song-link-anchor::before { content: "("; }
+.song-item--suno .song-link-anchor::after  { content: ")"; }
 
 /* Footer (public/poetic-footer.html injected by the build; see docs/BUILD.md) */
 .poetic-footer {
@@ -779,7 +797,7 @@ html.dark-mode button.selected {
   background-color: #0c1416;
 }
 
-html.dark-mode .audiomack-container {
+html.dark-mode .song-embed {
   color: #e6eef6;
 }
 
@@ -949,7 +967,7 @@ html.dark-mode .poetic-footer {
     background-color: #0c1416;
   }
 
-  .audiomack-container {
+  .song-embed {
     color: var(--text);
   }
 

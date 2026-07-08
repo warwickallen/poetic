@@ -7,7 +7,29 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.1.0] — 2026-07-08
+
+### Added
+
+- **Configurable song handlers.** Song links and embedded players are now
+  defined by YAML handlers instead of being hardcoded per service. Audiomack
+  and Suno ship as builtins (`src/song-handlers.yaml`); consumers add their
+  own services (YouTube, Spotify, …) under `song_handlers:` in
+  `.poetic-config.yaml` — no framework code needed. Adding a service needs
+  only YAML (a `link_url` and/or `embed_url` template, with `{token}`
+  substitution) plus CSS. See [`docs/BUILD.md`](docs/BUILD.md#custom-song-handlers).
+
+### Changed
+
+- **Audiomack player CSS classes renamed** to generic `.song-embed-*` /
+  `.song-item--<service>` / `.song-link--<service>` (was
+  `.load-audiomack-btn` / `.audiomack-container` / `.audiomack-player`).
+  Style custom handlers in `custom.css` via the per-service modifier classes.
+- **The `.poem` audio section grammar is now a generic `<Service>[: value]`
+  line** — a service name (bare for presence, or followed by `: value` to
+  supply a track ID or URL) — instead of hardcoded `Audiomack` / `Suno:`
+  keywords. Existing poems using `Audiomack` and `Suno: ...` are unaffected,
+  since those are now just the builtin services.
 
 ### Fixed
 

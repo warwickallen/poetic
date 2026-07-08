@@ -164,23 +164,40 @@ Note: The text after `#` in the example above is ignored by the parser, allowing
 
 ## 3. Audio Section
 
-Section for audio links. The section and its markers are optional if empty.
+Section for song links and embedded players. The section and its markers are optional if empty.
 
 ### Structure
 
 ```
-[Audiomack]
-[Suno: <url-path>]
+[<Service>]
+[<Service>: <value>]
 
 ====
 ```
 
 ### Rules
 
-- **Audiomack**: The word "Audiomack" on its own line indicates presence of an Audiomack link
-- **Suno**: Format is `Suno: ` followed by a URL path (e.g., `s/SongLink12345678` or `song/uuid`)
-- Both lines are optional; if neither is present, the section will be empty
-- The `====` end marker is only required if there are subsequent non-empty sections
+- Each line names a **service** — a single identifier token (a letter, then any
+  number of letters, digits, hyphens, or underscores) — either bare
+  (`Audiomack`) to indicate presence with no extra value, or followed by
+  `: <value>` (`Suno: s/SongLink12345678`) to supply a value such as a URL path
+  or track ID. Whitespace around the colon is trimmed
+- Service names are case-insensitive; the service becomes a lower-cased key in
+  the poem's YAML `audio` map
+- **Audiomack** and **Suno** ship as builtin services, resolved by handlers
+  defined in the framework's `src/song-handlers.yaml`. Any other service (e.g.
+  `YouTube`, `Spotify`) is rendered once a matching handler is added under
+  `song_handlers:` in `.poetic-config.yaml` — see
+  [Custom song handlers](BUILD.md#custom-song-handlers) in `docs/BUILD.md`
+- A service with no matching handler at build time is skipped, with a build
+  warning, rather than failing the build
+- Lines are optional and may appear in any order; if none are present, the
+  section is empty
+- Any line that does not match the `<Service>` or `<Service>: <value>` form
+  ends the audio section (matching the trailing-content rule used elsewhere
+  when a `====` marker is missing)
+- The `====` end marker is only required if there are subsequent non-empty
+  sections
 - Any text after the end marker on the same line is ignored
 
 ### Example
@@ -188,6 +205,7 @@ Section for audio links. The section and its markers are optional if empty.
 ```
 Audiomack
 Suno: s/SongLink12345678
+YouTube: dQw4w9WgXcQ
 
 ====
 ```

@@ -1005,22 +1005,32 @@ class PoemParser {
       }
 
       const trimmed = this.substituteVariables(line.trim());
-      if (trimmed === 'Audiomack') {
-        audio.audiomack = true;
-        hasAudio = true;
+      if (trimmed === '') {
         this.next();
-      } else if (trimmed.startsWith('Suno:')) {
-        const sunoPath = trimmed.substring(5).trim();
-        if (sunoPath) {
-          audio.suno = sunoPath;
-          hasAudio = true;
-        }
-        this.next();
-      } else if (trimmed === '') {
-        this.next();
-      } else {
+        continue;
+      }
+
+      // A song line names a service, either bare ("Audiomack") or with a value
+      // ("Suno: s/xyz", "YouTube: dQw4…"). The service becomes a lower-cased key;
+      // a song handler (builtin or from .poetic-config.yaml) renders it later.
+      // Anything that is not a single service token stops the audio section,
+      // matching the old behaviour for stray prose before a missing ==== marker.
+      const m = trimmed.match(/^([A-Za-z][\w-]*)\s*(?::\s*(.*))?$/);
+      if (!m) {
         break;
       }
+      const key = m[1].toLowerCase();
+      if (m[2] === undefined) {
+        audio[key] = true;
+        hasAudio = true;
+      } else {
+        const value = m[2].trim();
+        if (value) {
+          audio[key] = value;
+          hasAudio = true;
+        }
+      }
+      this.next();
     }
 
     if (hasAudio) {

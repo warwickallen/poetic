@@ -19,6 +19,7 @@
  *   blogger_template - path to the Blogger theme template file (default: public/blogger-template.html)
  *   show_footer      - false to omit the Poetic footer (default: true)
  *   footer_source    - path to the footer HTML file (default: public/poetic-footer.html)
+ *   song_handlers    - map of custom song-link/embedded-player handlers (see docs/BUILD.md)
  */
 
 const fs = require('fs');
@@ -33,7 +34,7 @@ const LEGACY_CONFIG_FILENAME = '.poetic-config';
  * Returns an empty object if the file does not exist.
  *
  * @param {string} [cwd] - Directory to search for .poetic-config.yaml (defaults to process.cwd())
- * @returns {{ favicon?: string, subtitle?: string, audiomack_artist?: string, skip_paths?: string[], auto_sync?: boolean, sync_schedule?: string, blogger_sync?: boolean, blogger_blog_id?: string, blogger_removed?: string, blogger_content?: string, blogger_label?: string, blogger_template?: string, show_footer?: boolean, footer_source?: string }}
+ * @returns {{ favicon?: string, subtitle?: string, audiomack_artist?: string, skip_paths?: string[], auto_sync?: boolean, sync_schedule?: string, blogger_sync?: boolean, blogger_blog_id?: string, blogger_removed?: string, blogger_content?: string, blogger_label?: string, blogger_template?: string, show_footer?: boolean, footer_source?: string, song_handlers?: object }}
  */
 function readPoeticConfig(cwd) {
   const root = cwd || process.cwd();

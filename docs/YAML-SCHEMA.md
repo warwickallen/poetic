@@ -43,15 +43,22 @@ versions:
 ### Audio
 ```yaml
 audio:
-  audiomack:
-    - url: https://audiomack.com/embed/...
-      active: true
+  audiomack: true
   suno: s/...
 ```
 
 **Notes:**
-- For `audiomack`: use array format with `url` and `active` fields
-- For `suno`: use relative path format (e.g., `s/...` or `song/...`). The full URL will be automatically constructed by the template
+- `audio` is a map of `<service>: <value>`, one entry per song line in the
+  `.poem` source's Audio section. Each key is a **song-handler name** — a
+  builtin (`audiomack`, `suno`) or a service configured under `song_handlers:`
+  in `.poetic-config.yaml` (e.g. `youtube`)
+- The value is `true` for a bare service line (presence only, e.g.
+  `Audiomack`), or a string for a service line with a value (e.g. `suno: s/...`
+  from `Suno: s/...`) — typically a relative path or ID that the handler's
+  URL template expands into a full URL
+- Rendering (link vs. embedded player, URL construction, labels) is driven
+  entirely by the matching song handler, not by this schema — see
+  [Custom song handlers](BUILD.md#custom-song-handlers) in `docs/BUILD.md`
 
 ### Postscript Notes
 ```yaml

@@ -199,10 +199,9 @@ const server = http.createServer((req, res) => {
       const config = readPoeticConfig(REPO_ROOT);
       const rawFavicon = config.favicon || "poetic-logo.svg";
       const favicon = rawFavicon.replace(/^public\//, "");
-      const audiomackArtist = config.audiomack_artist || "";
       const footerBlock = renderFooter(config, REPO_ROOT, { base: "" });
       const concatenatedContent = upsertFooter(
-        concatenateAllHtmlFiles(ROOT_DIR, favicon, audiomackArtist),
+        concatenateAllHtmlFiles(ROOT_DIR, favicon, config),
         footerBlock
       );
 

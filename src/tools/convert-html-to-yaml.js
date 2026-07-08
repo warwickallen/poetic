@@ -83,8 +83,10 @@ function parseHtmlPoem(htmlContent, filename) {
 
   if (audiomackMatch || sunoMatch) {
     audio = {};
-    if (audiomackMatch) audio.audiomack = audiomackMatch[1];
-    if (sunoMatch) audio.suno = sunoMatch[1];
+    // Canonical shape: audiomack is a bare presence flag; suno stores only the
+    // path portion (author/config-driven templates rebuild the full URL).
+    if (audiomackMatch) audio.audiomack = true;
+    if (sunoMatch) audio.suno = sunoMatch[1].replace(/^https:\/\/suno\.com\//, "");
   }
 
   // Extract analysis
@@ -169,7 +171,7 @@ function poemToYaml(poemData) {
     yaml += `\n`;
     yaml += `audio:\n`;
     if (poemData.audio.audiomack) {
-      yaml += `  audiomack: ${poemData.audio.audiomack}\n`;
+      yaml += `  audiomack: true\n`;
     }
     if (poemData.audio.suno) {
       yaml += `  suno: ${poemData.audio.suno}\n`;

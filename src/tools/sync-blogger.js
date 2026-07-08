@@ -265,13 +265,44 @@ function selectRemoved(posts, currentSlugs, label) {
  * @param {string} mode - 'full' | 'poem'
  * @returns {string}
  */
+/**
+ * Remove every `<div …>…</div>` block whose opening tag matches `startRegex`,
+ * balancing nested <div>s so the entire block (and only that block) is stripped.
+ * Non-div tags inside (buttons, anchors) do not affect the balance.
+ *
+ * @param {string} html
+ * @param {RegExp} startRegex - matches the block's opening <div …> tag
+ * @returns {string}
+ */
+function removeBalancedDivBlock(html, startRegex) {
+  const openRe = new RegExp(startRegex.source, startRegex.flags.replace('g', ''));
+  const tagRe = /<(\/?)div\b[^>]*>/gi;
+  let result = html;
+  while (true) {
+    const m = openRe.exec(result);
+    if (!m) break;
+    const start = m.index;
+    let depth = 0;
+    let end = -1;
+    tagRe.lastIndex = start;
+    let t;
+    while ((t = tagRe.exec(result)) !== null) {
+      depth += t[1] === '/' ? -1 : 1;
+      if (depth === 0) { end = t.index + t[0].length; break; }
+    }
+    if (end === -1) break; // unbalanced; leave the rest untouched
+    result = result.slice(0, start) + result.slice(end);
+  }
+  return result;
+}
+
 function extractContent(fragmentHtml, mode) {
   if (mode !== 'poem') return fragmentHtml;
   try {
     let html = fragmentHtml;
-    // Remove audio block: <div class="song-link" id="song--…">…</div>
-    // Uses a non-greedy match that handles nested divs by matching the outermost closing </div>
-    html = html.replace(/<div class="song-link" id="song--[^"]*">[\s\S]*?<\/div>(?=<div|$|\s*<\/div>)/g, '');
+    // Remove the whole audio block (<div class="song-link" id="song--…">…</div>),
+    // balancing nested <div>s so every song-item / link / player inside is stripped.
+    html = removeBalancedDivBlock(html, /<div class="song-link" id="song--[^"]*">/);
     // Remove show-analysis button: <button class="analysis …" id="show-analysis--…">…</button>
     html = html.replace(/<button class="analysis[^"]*" id="show-analysis--[^"]*"[^>]*>[\s\S]*?<\/button>/g, '');
     // Remove analysis div: <div class="analysis" id="analysis--…">…</div>
@@ -442,7 +473,8 @@ async function deletePost(blogId, token, postId) {
 async function main() {
   try {
     const args = parseArgs(process.argv.slice(2));
-    const opts = resolveConfig(readPoeticConfig(), process.env);
+    const rawConfig = readPoeticConfig();
+    const opts = resolveConfig(rawConfig, process.env);
 
     if (!opts.enabled) {
       console.log('Blogger sync disabled (set blogger_sync: true in .poetic-config.yaml).');
@@ -495,7 +527,7 @@ async function main() {
       if (args.only && data.slug !== args.only) continue;
 
       const bodyHtml = extractContent(
-        renderFragment(data, { audiomackArtist: opts.audiomackArtist }),
+        renderFragment(data, { config: rawConfig }),
         opts.content
       );
 

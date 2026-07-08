@@ -144,27 +144,121 @@ forwards the browser to `./<slug>/` via `<meta http-equiv="refresh">` plus a
 `<link rel="canonical">`. The `<slug>` is the poem's source filename stem (e.g. `my-poem.poem`
 → `/my-poem/`), not derived from the title, so identically-titled poems stay distinct.
 
-### Shared Audiomack loader (`public/poetic.js`)
+### Shared song-embed loader (`public/poetic.js`)
 
-`poetic.js` is a tiny, framework-owned script that replaces the per-poem inline
-`loadAudiomackPlayer` functions that previously appeared once inside every poem fragment.
-A single delegated `click` listener on `document` handles all `.load-audiomack-btn` buttons
-on any page (individual poem pages, `all-poems.html`, and the live dev-server endpoint).
+`poetic.js` is a tiny, framework-owned script that lazy-loads embedded song
+players. A single delegated `click` listener on `document` handles every
+`.song-embed-btn` button on any page (individual poem pages, `all-poems.html`,
+and the live dev-server endpoint), for any service — no per-service or
+per-poem JavaScript is needed.
 
-The audio button now uses `data-*` attributes instead of an inline `onclick`:
+The embed button carries the resolved embed URL and title as `data-*`
+attributes, built at render time from the poem's song handler:
 
 ```html
-<button class="load-audiomack-btn"
-        data-slug="my-poem"
-        data-title="My Poem"
-        data-artist="saltysojourner">🎵 Load Audio Player</button>
+<button class="song-embed-btn" data-embed-src="https://audiomack.com/embed/..." data-title="My Poem">
+  🎵 Load Audiomack Player
+</button>
 ```
 
-Set the Audiomack artist in `.poetic-config.yaml`:
+No third-party iframe request happens until the visitor clicks the button, at
+which point `poetic.js` creates the `<iframe>` inside the adjacent
+`.song-embed-player` element. Player dimensions are controlled by CSS, not
+JavaScript — see [Custom song handlers](#custom-song-handlers) below.
+
+Set the Audiomack artist referenced by the builtin `audiomack` handler's URL
+template in `.poetic-config.yaml`:
 
 ```yaml
 audiomack_artist: saltysojourner
 ```
+
+### Custom song handlers
+
+Song links and embedded players are driven by declarative **song handlers** —
+a mapping from a service name (as written in a poem's Audio section, e.g.
+`Audiomack` or `YouTube`) to a small definition of URLs and labels. Poetic
+ships two builtin handlers, `audiomack` and `suno`, defined in the framework's
+`src/song-handlers.yaml`. Adding support for another service needs only YAML
+and CSS — no framework code — by adding an entry under `song_handlers:` in
+`.poetic-config.yaml`.
+
+A handler definition may set:
+
+- `link_url` (+ `link_label`) — renders a plain anchor
+- `embed_url` (+ `button_label`) — renders a lazy-loaded iframe (see
+  [Shared song-embed loader](#shared-song-embed-loader-publicpoeticjs) above);
+  no third-party request happens until the visitor clicks the button
+
+At least one of `link_url` / `embed_url` is required; a handler may define
+both.
+
+**Worked example** — adding YouTube support:
+
+```yaml
+song_handlers:
+  youtube:
+    embed_url: "https://www.youtube.com/embed/{value}"
+    button_label: "▶ Load YouTube"
+    link_url: "https://youtu.be/{value}"
+    link_label: "watch on YouTube"
+```
+
+With this in place, a poem's Audio section can include:
+
+```
+YouTube: dQw4w9WgXcQ
+```
+
+which renders both a lazy-loaded embedded player and a plain link to the video.
+
+#### URL templates
+
+`link_url` and `embed_url` are templates containing `{token}` placeholders,
+resolved at build time:
+
+- `{value}` — the text the poem author wrote after the service name (empty for
+  a bare line such as `Audiomack`)
+- `{slug}`, `{title}`, `{author}`, `{date}` — the poem's own context
+- any scalar key from `.poetic-config.yaml` — e.g. `{audiomack_artist}`, as
+  used by the builtin `audiomack` handler
+
+A **fallback chain** `{a|b|c}` resolves to the first token in the list that is
+non-empty. For example, the builtin `audiomack` handler uses
+`{value|slug}` — the author's value if one was given, otherwise the poem's
+slug.
+
+#### Styling custom handlers
+
+Styling lives in CSS, not in the handler definition. Each song gets these
+generated classes, keyed on the lower-cased service name:
+
+- `.song-item` + `.song-item--<service>` — wrapper around one song
+- `.song-embed` + `.song-embed--<service>` — the embed container
+- `.song-embed-btn` — the lazy-load button (shared across all services)
+- `.song-embed-player` — the iframe holder
+- `.song-link-anchor` + `.song-link--<service>` — the link
+
+Add per-service rules to `public/custom.css`, for example to set the
+YouTube player's height:
+
+```css
+.song-embed--youtube .song-embed-player iframe {
+  height: 200px;
+}
+```
+
+Link-only services (like the builtin `suno`) get decorative parentheses from
+`poetic.css`:
+
+```css
+.song-item--suno .song-link-anchor::before { content: "("; }
+.song-item--suno .song-link-anchor::after  { content: ")"; }
+```
+
+A consumer can drop the parentheses for their own handler, or override them
+for `suno`, by overriding `content` for the matching `.song-item--<service>`
+selector in `public/custom.css` (an empty `content: "";` removes them).
 
 ### Customisation
 
@@ -181,6 +275,7 @@ Supported keys:
 | `favicon` | `poetic-logo.svg` | Filename (inside `public/`) of the browser-tab icon |
 | `subtitle` | `My Poems` | Subtitle shown below the site title on `index.html` |
 | `audiomack_artist` | _(none)_ | Audiomack artist slug used for embedded audio players (e.g. `saltysojourner`) |
+| `song_handlers` | _(none)_ | Map of custom song-handler definitions (service name → `link_url`/`embed_url`/labels), merged with the builtin `audiomack`/`suno` handlers; see [Custom song handlers](#custom-song-handlers) |
 | `skip_paths` | _(none)_ | List of framework paths to skip during sync |
 | `auto_sync` | _(off)_ | Set to `true` to enable the hourly scheduled sync workflow |
 | `sync_schedule` | `weekly` | How often the scheduled sync runs: `hourly`, `daily`, or `weekly` |

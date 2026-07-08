@@ -125,19 +125,36 @@ syn match poemDividerLineTrailing "^----\s\+.*$" contains=poemDividerMark
 syn match poemDividerMark "^----" contained
 
 " End markers without trailing text (must come before trailing version for priority)
-syn match poemEndMarkerLineOnly "^====$"
+" nextgroup hands off to the audio section (see below): it is only ever
+" actually used when what follows (after any blank lines) looks like a
+" song-service line, so it is a no-op after every other marker.
+syn match poemEndMarkerLineOnly "^====$" nextgroup=poemSongService skipwhite skipnl skipempty
 " End markers with trailing text
-syn match poemEndMarkerLineTrailing "^====\s\+.*$" contains=poemEndMarkerMark
+syn match poemEndMarkerLineTrailing "^====\s\+.*$" contains=poemEndMarkerMark nextgroup=poemSongService skipwhite skipnl skipempty
 syn match poemEndMarkerMark "^====" contained
 
 " Header section (first 3 lines)
 syn match poemTitle "\%1l.*$"
 syn match poemDate "^\d\{4\}-\d\{2\}-\d\{2\}$"
 
-" Audio section
-syn match poemAudioKeyword "^Audiomack$"
-syn match poemSunoLine "^Suno:\s\+\S\+" contains=poemSunoKeyword
-syn match poemSunoKeyword "^Suno:" contained
+" Audio section: each line names a song-service handler (see
+" song-handlers.js / song-handlers.yaml) and, optionally (for the
+" "Service: value" form), a value passed to it. The set of services is
+" data-driven -- consumers add more under song_handlers: in
+" .poetic-config.yaml -- so any identifier-shaped line is matched here,
+" rather than a fixed list of names (Audiomack/Suno are just the two
+" builtin handlers).
+"
+" Both are `contained`, reachable only via nextgroup: from the preceding
+" "====" marker (skipping any blank lines) for the first song line, and
+" from each other for every line after that. This scopes them to the
+" audio section without a region: a stray identifier-shaped line
+" elsewhere in the poem is never a nextgroup target, so it is never
+" mistaken for a song service.
+syn match poemSongService "^[a-zA-Z][a-zA-Z0-9_-]*" contained
+      \ nextgroup=poemSongValue,poemSongService skipnl skipempty
+syn match poemSongValue ":\s\+\S.*$" contained
+      \ nextgroup=poemSongService skipnl skipempty
 
 " Analysis section: rendered as GitHub-Flavoured Markdown.
 " Highlight it with the embedded Markdown syntax, from the {Synopsis}/{Full}
@@ -248,9 +265,8 @@ hi def link poemLiteralStartMark Delimiter
 hi def link poemLiteralEndLine Comment
 hi def link poemLiteralEndMark Delimiter
 
-hi def link poemAudioKeyword Keyword
-hi def link poemSunoKeyword Keyword
-hi def link poemSunoLine String
+hi def link poemSongService Keyword
+hi def link poemSongValue String
 
 hi def link poemAnalysisLabel Type
 

@@ -191,13 +191,27 @@ whitespace_or_blank = { whitespace } ;
 
 (* ============================================================================
    AUDIO SECTION
+
+   Each line names a song-service handler (see song-handlers.js /
+   song-handlers.yaml) and, optionally, a value passed to that handler. A
+   bare line (service_name only) is equivalent to a value of `true` in the
+   generated YAML. The set of recognised services is NOT fixed by this
+   grammar - it is data-driven: "Audiomack" and "Suno" below are just the
+   two builtin handlers shipped with the framework; consumers may register
+   additional services (e.g. "YouTube") via `song_handlers:` in
+   .poetic-config.yaml. Examples:
+
+     Audiomack
+     Suno: s/xyz
    ============================================================================ *)
 
-audio_section = { audiomack_line | suno_line, newline } ;
+audio_section = { song_line, newline } ;
 
-audiomack_line = "Audiomack" ;
+song_line = service_name, [ ":", whitespace, value ] ;
 
-suno_line = "Suno:", whitespace, url_path ;
+service_name = letter, { letter | digit | "-" | "_" } ;
+
+value = url_path ;
 
 url_path = { url_char } ;
 

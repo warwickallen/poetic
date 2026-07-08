@@ -40,8 +40,13 @@ The converter handles all features defined in the `.poem` syntax specification:
 - Preserves all indentation and newlines in poem content
 
 ### Audio Section
-- Audiomack presence indicator
-- Suno URL paths
+- Generic `<Service>` (bare, presence only) or `<Service>: <value>` lines, one
+  per song — the service name becomes a lower-cased key in the YAML `audio`
+  map (e.g. `Audiomack` → `audiomack: true`, `Suno: s/xyz` → `suno: "s/xyz"`)
+- `Audiomack` and `Suno` ship as builtin services; other services (`YouTube`,
+  `Spotify`, ...) are recognised once a matching handler is added under
+  `song_handlers:` in `.poetic-config.yaml` — see
+  [Custom song handlers](BUILD.md#custom-song-handlers) in `docs/BUILD.md`
 
 ### Postscript Notes
 - Multiple postscript notes separated by `----` dividers

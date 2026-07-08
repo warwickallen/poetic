@@ -16,39 +16,12 @@ const { slugFromFile } = require("./slugify");
 const { parseDateForSorting, formatDateForDisplay, toISODate } = require("./date-utils");
 const { readPoeticConfig } = require("./poetic-config");
 const { loadPoemData, renderFragment } = require("./poem-render");
+const { hasResolvableSongs } = require("./song-handlers");
 const { renderFooter, upsertFooter } = require("./footer");
 const { REPO_ROOT } = require("./repo-root");
 const beautify = require("js-beautify");
 
-/**
- * Check if a poem has any active audio files
- */
-function hasActiveAudio(audioData) {
-  if (!audioData || typeof audioData !== "object") {
-    return false;
-  }
-
-  for (const platform in audioData) {
-    const entries = audioData[platform];
-    if (platform === 'suno') {
-      if (typeof entries === 'string' && entries.trim()) {
-        return true;
-      }
-    } else if (platform === 'audiomack') {
-      if (entries === true) {
-        return true;
-      }
-    } else if (Array.isArray(entries)) {
-      if (entries.some((entry) => entry.active === true)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg", audiomackArtist = "") {
+function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg", config = {}) {
   try {
     // Read YAML files from the poems directory for metadata
     const poemsDir = path.join(REPO_ROOT, "src", "poems", "yaml");
@@ -105,7 +78,7 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg", audiomack
         const anchor = `poem-${fileName}`;
         const date = data.date ? formatDateForDisplay(data.date) : "Unknown Date";
         const isoDate = data.date ? toISODate(data.date) : "";
-        const hasSongLink = hasActiveAudio(data.audio);
+        const hasSongLink = hasResolvableSongs(data.audio, config);
         const labels = Array.isArray(data.labels) ? data.labels : [];
 
         poemData.push({
@@ -213,7 +186,7 @@ function concatenateAllHtmlFiles(dirPath, favicon = "poetic-logo.svg", audiomack
         if (!poemDataObj) {
           throw new Error(`Failed to load poem data from ${poem.yamlPath}`);
         }
-        const poemContent = renderFragment(poemDataObj, { audiomackArtist });
+        const poemContent = renderFragment(poemDataObj, { config });
 
         concatenatedContent += `
         <div class="poem-section" id="${poem.anchor}" data-date="${poem.isoDate || ''}">
@@ -601,7 +574,7 @@ const RENDER_POEMS_SCRIPT = `        function formatPoemDate(dateStr) {
         // Initial render
         renderPoems();`;
 
-function generateIndexHtml(publicDir, favicon = "poetic-logo.svg", subtitle = undefined) {
+function generateIndexHtml(publicDir, favicon = "poetic-logo.svg", subtitle = undefined, config = {}) {
   try {
     // Read YAML files from the poems directory for metadata
     const poemsDir = path.join(REPO_ROOT, "src", "poems", "yaml");
@@ -636,7 +609,7 @@ function generateIndexHtml(publicDir, favicon = "poetic-logo.svg", subtitle = un
 
         // Clean URL: point to slug/ directory instead of slug.html
         const file = `${slug}/`;
-        const hasAudio = hasActiveAudio(data.audio);
+        const hasAudio = hasResolvableSongs(data.audio, config);
         const date = toISODate(data.date);
         const labels = Array.isArray(data.labels) ? data.labels : [];
 
@@ -796,10 +769,6 @@ function main() {
   if (subtitle) {
     console.log(`Using subtitle from .poetic-config.yaml: ${subtitle}`);
   }
-  const audiomackArtist = config.audiomack_artist || '';
-  if (audiomackArtist) {
-    console.log(`Using audiomack_artist from .poetic-config.yaml: ${audiomackArtist}`);
-  }
   // all-poems.html and index.html both live at the public/ root.
   const footerBlock = renderFooter(config, REPO_ROOT, { base: '' });
   if (config.show_footer === false) {
@@ -811,7 +780,7 @@ function main() {
   console.log("Step 1: Building all-poems.html...");
 
   const concatenatedContent = upsertFooter(
-    concatenateAllHtmlFiles(publicDir, favicon, audiomackArtist),
+    concatenateAllHtmlFiles(publicDir, favicon, config),
     footerBlock
   );
   const allPoemsOutputPath = path.join(publicDir, "all-poems.html");
@@ -829,7 +798,7 @@ function main() {
 
   console.log("\nStep 2: Updating index.html...");
 
-  const updatedIndexContent = generateIndexHtml(publicDir, favicon, subtitle);
+  const updatedIndexContent = generateIndexHtml(publicDir, favicon, subtitle, config);
   if (updatedIndexContent) {
     const indexPath = path.join(publicDir, "index.html");
     const finalIndexContent = upsertFooter(updatedIndexContent, footerBlock);

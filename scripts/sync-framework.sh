@@ -65,6 +65,7 @@ fi
 FRAMEWORK_PATHS=(
   src/tools
   src/templates
+  src/song-handlers.yaml
   editors
   docs
   examples

@@ -1,5 +1,5 @@
 //- Shared poem-content mixin — included by poem.pug (fragment) and poem-page.pug (full page).
-//- Do NOT add a <script> block here; the Audiomack loader lives in public/poetic.js.
+//- Do NOT add a <script> block here; the embedded-player loader lives in public/poetic.js.
 
 //- JavaScript helper: slugify text (mirrors slugify.js)
 - function slugify(text) {
@@ -44,7 +44,7 @@ mixin processLines(text)
       - index++
 
 //- Main poem-content mixin.
-//- Locals used: title, author, date, slug, versions, audio, postscript, analysis, audiomackArtist, labels, labelBase
+//- Locals used: title, author, date, slug, versions, songs, postscript, analysis, labels, labelBase
 mixin poemContent
   div(id=`poem--${slug}`)
     div.poem-info
@@ -87,23 +87,25 @@ mixin poemContent
         each label in labels
           li: a.poem-label(href=`${labelBase || ''}all-poems.html?scope=labels&q=${encodeURIComponent(label)}`)= label
 
-    if audio
+    if songs && songs.length > 0
       div(id=`song--${slug}` class="song-link")
-        if audio.audiomack === true
-          div(id=`audiomack-container--${slug}` class="audiomack-container")
-            button.load-audiomack-btn(
-              id=`load-audiomack--${slug}`
-              type="button"
-              data-slug=slug
-              data-title=title
-              data-artist=audiomackArtist
-            ) 🎵 Load Audio Player
-            div(id=`audiomack-player--${slug}` class="audiomack-player hidden")
-          br
-        if audio.suno
-          |  (
-          a(href=`https://suno.com/${audio.suno}` target="_blank") recording on Suno
-          | )
+        each song in songs
+          div(class=`song-item song-item--${song.service}`)
+            if song.embed
+              div(class=`song-embed song-embed--${song.service}`)
+                button.song-embed-btn(
+                  id=`song-embed-btn--${song.service}--${slug}`
+                  type="button"
+                  data-embed-src=song.embed.src
+                  data-title=song.embed.title
+                )= song.embed.buttonLabel
+                div(class="song-embed-player hidden")
+            if song.link
+              a.song-link-anchor(
+                class=`song-link--${song.service}`
+                href=song.link.href
+                target="_blank"
+              )= song.link.label
       //- end song
 
     if postscript && postscript.length > 0

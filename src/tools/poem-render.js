@@ -5,8 +5,8 @@
  *   resolveRefs(data, basePath)                     - resolve $ref in YAML data
  *   readPoemFile(filePath)                          - read and parse a YAML poem file
  *   loadPoemData(yamlPath)                          - read YAML, resolve refs, set slug + date
- *   renderFragment(poemData, { audiomackArtist })   - compile poem.pug fragment
- *   renderPage(poemData, { favicon, subtitle, audiomackArtist }) - compile poem-page.pug full doc
+ *   renderFragment(poemData, { config })            - compile poem.pug fragment
+ *   renderPage(poemData, { favicon, subtitle, config }) - compile poem-page.pug full doc
  */
 
 const fs = require('fs');
@@ -16,6 +16,7 @@ const pug = require('pug');
 const { slugFromFile } = require('./slugify');
 const { formatDateForDisplay } = require('./date-utils');
 const { REPO_ROOT } = require('./repo-root');
+const { resolveSongs } = require('./song-handlers');
 
 const TEMPLATES_DIR = path.join(__dirname, '..', 'templates');
 const FRAGMENT_TEMPLATE = path.join(TEMPLATES_DIR, 'poem.pug');
@@ -228,24 +229,36 @@ function loadPoemData(yamlPath) {
 }
 
 /**
+ * Resolve a poem's audio section into the `songs` render model (see
+ * song-handlers.js). Returns [] when the poem has no audio.
+ */
+function songsFor(data, config) {
+  return resolveSongs(data.audio, {
+    ctx: { slug: data.slug, title: data.title, author: data.author, date: data.date },
+    config: config || {},
+  });
+}
+
+/**
  * Render a poem as an HTML fragment (no html/head/body wrapper).
  *
  * @param {object} poemData
- * @param {{ audiomackArtist?: string }} opts
+ * @param {{ config?: object }} opts - parsed .poetic-config.yaml (drives song handlers)
  * @returns {string} HTML fragment string
  */
 function renderFragment(poemData, opts = {}) {
-  const { audiomackArtist = '' } = opts;
+  const { config = {} } = opts;
   const data = resolveContextVars(poemData);
+  const songs = songsFor(data, config);
   const compiledFn = pug.compileFile(FRAGMENT_TEMPLATE, { pretty: false, cache: false });
-  return compiledFn({ ...data, audiomackArtist, labelBase: '' });
+  return compiledFn({ ...data, songs, labelBase: '' });
 }
 
 /**
  * Render a poem as a full standalone HTML document.
  *
  * @param {object} poemData
- * @param {{ favicon?: string, subtitle?: string, audiomackArtist?: string }} opts
+ * @param {{ favicon?: string, subtitle?: string, config?: object }} opts
  *   favicon must already have any leading "public/" stripped.
  * @returns {string} Full HTML document string
  */
@@ -253,11 +266,12 @@ function renderPage(poemData, opts = {}) {
   const {
     favicon = 'poetic-logo.svg',
     subtitle = 'My Poems',
-    audiomackArtist = '',
+    config = {},
   } = opts;
   const data = resolveContextVars(poemData);
+  const songs = songsFor(data, config);
   const compiledFn = pug.compileFile(PAGE_TEMPLATE, { pretty: false, cache: false });
-  return compiledFn({ ...data, favicon, subtitle, audiomackArtist, labelBase: '../' });
+  return compiledFn({ ...data, favicon, subtitle, songs, labelBase: '../' });
 }
 
 module.exports = {

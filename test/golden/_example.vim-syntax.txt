@@ -62,8 +62,8 @@
 
 [====]=poemEndMarkerMark [  # end of versions]=poemEndMarkerLineTrailing
 
-[Audiomack]=poemAudioKeyword
-[Suno:]=poemSunoKeyword [ s/SongLink12345678]=poemSunoLine
+[Audiomack]=poemSongService
+[Suno]=poemSongService [: s/SongLink12345678]=poemSongValue
 
 [====]=poemEndMarkerMark [  # end of audio]=poemEndMarkerLineTrailing
 

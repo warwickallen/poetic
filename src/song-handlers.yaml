@@ -1,0 +1,32 @@
+# Builtin song handlers shipped with the Poetic framework.
+#
+# A handler maps a music service named in a poem's audio section (e.g. a line
+# "Audiomack" or "Suno: s/xyz") to markup. Handlers are declarative — URL
+# templates and labels only. Styling is NOT defined here; it lives in
+# public/poetic.css (framework) and public/custom.css (consumer), keyed off the
+# generated classes .song-item--<name> / .song-embed--<name> / .song-link--<name>.
+#
+# Consumers add or override handlers under `song_handlers:` in
+# .poetic-config.yaml (a user handler of the same name replaces the builtin).
+# Adding a service should need only YAML + CSS — never framework code.
+#
+# Each handler defines at least one of:
+#   link_url  / link_label    -> a plain anchor
+#   embed_url / button_label  -> a lazy-loaded iframe (built on click by poetic.js)
+#
+# {token} placeholders in the URL templates are resolved at build time against:
+#   {value}                          the text after the service name (empty for a
+#                                    bare line such as "Audiomack")
+#   {slug} {title} {author} {date}   poem context
+#   {<config-key>}                   any scalar in .poetic-config.yaml, e.g.
+#                                    {audiomack_artist}
+# A fallback chain {a|b} resolves to the first token that is non-empty, so
+# {value|slug} means "the author's value, or the poem slug if none was given".
+
+audiomack:
+  embed_url: "https://audiomack.com/embed/{audiomack_artist}/song/{value|slug}"
+  button_label: "🎵 Load Audiomack Player"
+
+suno:
+  link_url: "https://suno.com/{value}"
+  link_label: "recording on Suno"

@@ -1,16 +1,22 @@
-// Shared Audiomack lazy-loader — framework-owned, do not hand-edit.
-// A single delegated click handler that works for any number of poems on any page.
+// Shared lazy-loader for embedded song players — framework-owned, do not hand-edit.
+// A single delegated click handler that works for any embed (Audiomack, YouTube,
+// Spotify, …) on any page. The embed URL is resolved at build time into
+// data-embed-src, so this stays provider-agnostic and no third-party iframe loads
+// until the visitor clicks. Player dimensions come from CSS (.song-embed-player).
 document.addEventListener('click', function (e) {
-  const btn = e.target.closest('.load-audiomack-btn');
+  const btn = e.target.closest('.song-embed-btn');
   if (!btn) return;
-  const { slug, title, artist } = btn.dataset;
-  const player = document.getElementById('audiomack-player--' + slug);
-  if (!player) return;
+  const src = btn.dataset.embedSrc;
+  const container = btn.closest('.song-embed');
+  const player = container && container.querySelector('.song-embed-player');
+  if (!player || !src) return;
   btn.classList.add('hidden');
   const iframe = document.createElement('iframe');
-  iframe.src = 'https://audiomack.com/embed/' + artist + '/song/' + slug;
-  iframe.scrolling = 'no'; iframe.width = '100%'; iframe.height = '252';
-  iframe.frameBorder = '0'; iframe.title = title || '';
+  iframe.src = src;
+  iframe.setAttribute('scrolling', 'no');
+  iframe.setAttribute('frameborder', '0');
+  iframe.setAttribute('loading', 'lazy');
+  iframe.title = btn.dataset.title || '';
   player.classList.remove('hidden'); player.appendChild(iframe);
 });
 

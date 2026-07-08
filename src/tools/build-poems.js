@@ -32,7 +32,6 @@ function buildAllPoems() {
   // Strip a leading "public/" so href="../<favicon>" resolves correctly from slug/ subdirs
   const favicon = rawFavicon.replace(/^public\//, '');
   const subtitle = config.subtitle || 'My Poems';
-  const audiomackArtist = config.audiomack_artist || '';
   // Poem pages live at public/<slug>/index.html, one directory deep, so
   // footer-relative asset links (e.g. %{base}poetic-logo.svg) need "../".
   const footerBlock = renderFooter(config, REPO_ROOT, { base: '../' });
@@ -121,7 +120,7 @@ function buildAllPoems() {
     // ── 1. Full standalone page: public/<slug>/index.html ──────────────────
     let pageHtml;
     try {
-      pageHtml = renderPage(poemData, { favicon, subtitle, audiomackArtist });
+      pageHtml = renderPage(poemData, { favicon, subtitle, config });
       pageHtml = upsertFooter(pageHtml, footerBlock);
     } catch (err) {
       console.error(`Error rendering page for ${poemData.title}:`, err.message);

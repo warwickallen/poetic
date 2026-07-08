@@ -35,7 +35,7 @@ The syntax highlighting provides colour-coding for all major Poem file elements:
 | **Literal blocks** | `<<< ... >>>` | PreProc style |
 | **Embedded languages** | `<<<html`, `<<<python`, etc. | Language-specific |
 | **Dividers** | `----`, `====` | Delimiter |
-| **Audio keywords** | `Audiomack`, `Suno:` | Keyword |
+| **Audio keywords** | Song service lines, e.g. `Audiomack`, `Suno:` | Keyword |
 | **Headings** | `#`, `##`, `###` | Title style |
 | **Emphasis** | `_text_` | Underlined |
 | **Strong** | `*text*` | Bold/Statement |

@@ -144,11 +144,17 @@ class YamlToPoemConverter {
    */
   writeAudio() {
     if (this.data.audio) {
-      if (this.data.audio.audiomack) {
-        this.addLine('Audiomack');
-      }
-      if (this.data.audio.suno) {
-        this.addLine(`Suno: ${this.data.audio.suno}`);
+      // Service names are data-driven (see song-handlers.js /
+      // song-handlers.yaml) -- write back whatever the YAML has, in order,
+      // rather than a fixed Audiomack/Suno pair. A value of `true` becomes
+      // a bare line; a non-empty string value becomes "Service: value".
+      for (const [service, value] of Object.entries(this.data.audio)) {
+        const displayName = service.charAt(0).toUpperCase() + service.slice(1);
+        if (value === true) {
+          this.addLine(displayName);
+        } else if (typeof value === 'string' && value.trim() !== '') {
+          this.addLine(`${displayName}: ${value}`);
+        }
       }
       this.addBlankLines();
     }
