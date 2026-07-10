@@ -37,6 +37,15 @@
 # override deep-merges key-by-key into the builtin (nested maps like
 # `media_sizes` merge recursively); a `null` value deletes a key. So a consumer
 # can retune just `media_sizes.audio.height` without redeclaring `embed_url`.
+#
+# `value_patterns` (all three builtins below) is an ordered list of
+# `{ match, value? }` entries tried against the raw audio-line value before it
+# is substituted into embed_url/link_url — see the docblock in
+# src/tools/song-handlers.js for the full mechanism. It exists so an author can
+# paste any amount of a service's own URL, from a bare ID up to a full share
+# link, and have the rest inferred. A value that matches none of a handler's
+# patterns (including a plain slug override, e.g. `Audiomack: my-shepherd`) is
+# used exactly as written.
 
 audiomack:
   # {artist} has no builtin value — a consumer supplies it via
@@ -44,10 +53,27 @@ audiomack:
   embed_url: "https://audiomack.com/embed/{artist}/song/{value|slug}"
   button_label: "🎵 Load Audiomack Player"
   embed_height: "252px"
+  value_patterns:
+    # "[…audiomack.com/][embed/]<artist>/[song/]<slug>" — accepts a pasted full
+    # or partial Audiomack URL and infers the artist + song slug from however
+    # much of it is given. A bare single-segment value (no "/") doesn't match
+    # this and falls through unchanged, i.e. it overrides only the slug, e.g.
+    # `Audiomack: my-shepherd` (artist stays whatever song_handlers.audiomack.artist
+    # says); `Audiomack: my_other_account/song/my-shepherd` overrides both.
+    - match: '^(?:(?:https?://)?(?:www\.)?audiomack\.com/)?(?:embed/)?(?<artist>[^/?#]+)/(?:song/)?(?<value>[^/?#]+)/?$'
 
 suno:
   link_url: "https://suno.com/{value}"
   link_label: "recording on Suno"
+  value_patterns:
+    # A full/partial suno.com URL is reduced to its "s/<id>" or "song/<uuid>" tail.
+    - match: '^(?:(?:https?://)?(?:www\.)?suno\.com/)?(?<value>(?:s|song)/.+)$'
+    # A bare 16-character alphanumeric ID (the short-link form) infers "s/".
+    - match: '^(?<id>[A-Za-z0-9]{16})$'
+      value: "s/{id}"
+    # A bare UUID (8-4-4-4-12 hex) infers "song/" (the full-link form).
+    - match: '^(?<uuid>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$'
+      value: "song/{uuid}"
 
 mega:
   embed_url: "https://mega.nz/embed/{value}"
@@ -60,3 +86,7 @@ mega:
     # in .poetic-config.yaml.
     audio: { aspect_ratio: "1 / 1" }
     video: { aspect_ratio: "16 / 9" }
+  value_patterns:
+    # A pasted full/partial MEGA share URL ("[…mega.nz/][file/]<id>#<key>") is
+    # reduced to the bare "<id>#<key>" identifier embed_url expects.
+    - match: '^(?:(?:https?://)?(?:www\.)?mega\.nz/)?(?:file/)?(?<value>[^/?#]+#.+)$'

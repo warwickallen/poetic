@@ -21,6 +21,12 @@
  *                                    via song_handlers.audiomack.artist
  * A fallback chain {a|b|c} resolves to the first token that is non-empty.
  *
+ * A handler may also declare `value_patterns` — an ordered list of
+ * { match, value? } regexes tried against the raw {value} before template
+ * substitution, so an author can paste any amount of a service's own URL (a
+ * full share link, a partial path, a bare ID) and have the rest inferred; see
+ * applyValuePatterns() below.
+ *
  * A handler that serves several kinds of media (e.g. mega: audio and video)
  * declares `default_media` plus a `media_sizes` map of per-type size profiles
  * ({ height } OR { aspect_ratio }); a single-media handler declares `embed_height`
@@ -124,7 +130,8 @@ function audioValueString(value) {
  * Build the {token} scope: top-level config scalars, then the matched
  * handler's own scalar fields (e.g. `artist` merged in from
  * song_handlers.audiomack.artist — see loadSongHandlers), then poem context,
- * then the author value. Later sources win on key collision.
+ * then the author value (run through the handler's `value_patterns`, if any —
+ * see applyValuePatterns). Later sources win on key collision.
  */
 function buildScope(value, ctx = {}, config = {}, handler = {}) {
   const scope = {};
@@ -141,7 +148,49 @@ function buildScope(value, ctx = {}, config = {}, handler = {}) {
     if (ctx[name] != null) scope[name] = String(ctx[name]);
   }
   scope.value = audioValueString(value);
+  applyValuePatterns(scope, handler);
   return scope;
+}
+
+/**
+ * Rewrite `scope.value` (and optionally other scope tokens, e.g. `{artist}`)
+ * by matching the raw author value against a handler's `value_patterns` — an
+ * ordered list of `{ match, value? }` entries. This lets an author paste any
+ * amount of a service's own URL — a full share link, a partial path, or just
+ * a bare ID — and have the rest inferred, rather than having to hand-extract
+ * the exact substring a template needs.
+ *
+ * The first entry whose `match` regexp matches the raw value wins:
+ *   - its named capture groups are merged into `scope` (e.g. a group named
+ *     `artist` overrides `{artist}` for this song only)
+ *   - if the entry has a `value` template, it is substituted (via the same
+ *     {token} engine as URL templates) against the updated scope to produce
+ *     the new `{value}`; otherwise a named group called `value` — merged in
+ *     the step above — supplies it directly
+ * A raw value that matches no pattern (including when the handler defines
+ * none, or the value is empty) is left exactly as the author wrote it — this
+ * is what keeps a plain override (e.g. `Audiomack: my-shepherd`) and every
+ * existing bare-value handler working unchanged.
+ */
+function applyValuePatterns(scope, handler) {
+  const raw = scope.value;
+  if (!raw) return;
+  const patterns = Array.isArray(handler.value_patterns) ? handler.value_patterns : [];
+  for (const entry of patterns) {
+    if (!entry || typeof entry.match !== 'string') continue;
+    let re;
+    try {
+      re = new RegExp(entry.match);
+    } catch (err) {
+      console.warn(`Warning: song handler has an invalid value_patterns regex "${entry.match}" — ignoring it.`);
+      continue;
+    }
+    const m = re.exec(raw);
+    if (!m) continue;
+    Object.assign(scope, m.groups || {});
+    if (entry.value != null) scope.value = substituteTemplate(entry.value, scope);
+    return;
+  }
 }
 
 /**

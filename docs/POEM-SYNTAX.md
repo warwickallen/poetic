@@ -205,6 +205,46 @@ Section for song links and embedded players. The section and its markers are opt
   sections
 - Any text after the end marker on the same line is ignored
 
+### Value overrides and pasted URLs
+
+A bare `Audiomack` line (no value) plays the poem's own URL slug — the source
+filename stem, e.g. `my-poem.poem` → `my-poem`. That is usually also the song's
+Audiomack slug, but not always: if a poem's filename was disambiguated from
+another poem sharing its title (see [Standalone poem pages and redirect
+stubs](BUILD.md#standalone-poem-pages-and-redirect-stubs) in `docs/BUILD.md`),
+the two slugs can diverge, and the bare line then plays the wrong song. Give an
+explicit value to override it:
+
+```
+Audiomack: my-shepherd
+```
+
+overrides just the song slug (the configured artist is unchanged), while
+
+```
+Audiomack: my_other_account/song/my-shepherd
+```
+
+overrides both artist and slug. Either form also accepts a full pasted
+Audiomack URL (`https://audiomack.com/embed/my_other_account/song/my-shepherd`)
+— as much of the URL as is given is used, and the rest is inferred.
+
+The same "paste any amount of the tail of the URL" leniency applies to the
+other builtins:
+
+- **Suno** — `Suno: s/SongLink12345678` and `Suno: song/<uuid>` both work as
+  before; a bare 16-character ID (`Suno: SongLink12345678`) infers the `s/`
+  form, and a bare UUID (`Suno: 8f14e45f-…`) infers the `song/` form. A full
+  `https://suno.com/…` URL is also accepted
+- **Mega** — a full share link
+  (`Mega: https://mega.nz/file/AbC1dEfG#h1JkLmN0pQ…`) is reduced to the
+  `<id>#<key>` identifier automatically, alongside the plain identifier form
+  documented below
+
+A custom handler (see [Custom song handlers](BUILD.md#custom-song-handlers) in
+`docs/BUILD.md`) can define this same inference for its own service via
+`value_patterns`.
+
 ### MEGA
 
 The builtin **Mega** service embeds a [MEGA.nz](https://mega.nz) media player

@@ -200,6 +200,8 @@ A handler definition may set:
   no third-party request happens until the visitor clicks the button
 - player-size keys — `embed_height`, `embed_aspect_ratio`, `default_media`, and
   `media_sizes` (see [Player size](#player-size) below)
+- `value_patterns` — infers a full value from a partial or pasted URL (see
+  [Value patterns](#value-patterns) below)
 
 At least one of `link_url` / `embed_url` is required; a handler may define
 both.
@@ -240,6 +242,44 @@ A **fallback chain** `{a|b|c}` resolves to the first token in the list that is
 non-empty. For example, the builtin `audiomack` handler uses
 `{value|slug}` — the author's value if one was given, otherwise the poem's
 slug.
+
+#### Value patterns
+
+`value_patterns` lets a handler accept a partial or full URL as `{value}` and
+infer the rest, so a poem author can paste as much of a service's own URL as
+they have to hand rather than hand-extracting one exact substring. It is an
+ordered list of `{ match, value? }` entries, tried in order against the raw
+value (before any `{token}` substitution); the first one whose `match` regexp
+matches wins:
+
+```yaml
+song_handlers:
+  youtube:
+    embed_url: "https://www.youtube.com/embed/{value}"
+    button_label: "▶ Load YouTube"
+    value_patterns:
+      # Accept a full/partial youtube.com or youtu.be URL and reduce it to the
+      # bare video ID.
+      - match: '^(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)(?<value>[^&?#]+)'
+```
+
+- a named capture group (`(?<name>…)`) is merged into the token scope, so a
+  group named `value` overrides `{value}` directly, and a group with any other
+  name (e.g. `artist`) becomes available as `{artist}` for this song only,
+  overriding a handler-level or config-level field of the same name
+- an entry's optional `value` key is itself a `{token}` template, substituted
+  against the scope *after* the match's own groups are merged in — use it when
+  the new value needs to be built from a captured group plus fixed text (the
+  builtin `suno` handler does this to turn a bare ID into `s/<id>`)
+- a value that matches none of the handler's patterns — including an empty
+  value, or a plain override with no URL structure at all — is left exactly as
+  the author wrote it, so a bare slug override (e.g. `Audiomack: my-shepherd`)
+  keeps working without needing a pattern of its own
+
+See the builtin `audiomack`, `suno`, and `mega` handlers in
+`src/song-handlers.yaml` for worked examples, and [Value overrides and pasted
+URLs](POEM-SYNTAX.md#value-overrides-and-pasted-urls) in `docs/POEM-SYNTAX.md`
+for the author-facing behaviour.
 
 #### Player size
 

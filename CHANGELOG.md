@@ -9,6 +9,21 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Song-handler value overrides and pasted-URL inference.** A poem's audio
+  line can now override just part of a builtin handler's URL — e.g.
+  `Audiomack: my-shepherd` overrides only the song slug (useful when a poem's
+  URL slug and its Audiomack slug have diverged, such as after disambiguating
+  two same-titled poems by filename), and `Audiomack: other_account/song/my-shepherd`
+  overrides the artist too. All three builtins (`audiomack`, `suno`, `mega`)
+  also accept a full or partial pasted URL from the service itself and infer
+  the rest; `suno` additionally infers the `s/` vs `song/` link form from a
+  bare ID's shape. This is driven by a new declarative `value_patterns` field
+  a custom handler can also use — see [Value
+  patterns](docs/BUILD.md#value-patterns) in `docs/BUILD.md`. Resolves
+  TD26071001.
+
 ### Changed
 
 - **Breaking: `.poetic-config.yaml` is now hierarchical.** Related keys are

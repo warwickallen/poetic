@@ -182,3 +182,131 @@ test('a consumer can add a brand-new handler alongside the builtins', () => {
   assert.ok(handlers.youtube);
   assert.ok(handlers.mega, 'builtins remain');
 });
+
+// ── value_patterns (generic mechanism) ──────────────────────────────────────
+
+const PATTERNED = {
+  artistslug: {
+    embed_url: 'https://x/{artist|default}/{value|slug}',
+    embed_height: '1px',
+    value_patterns: [
+      { match: '^(?<artist>[^/]+)/(?:song/)?(?<value>[^/]+)$' },
+    ],
+  },
+  prefixed: {
+    embed_url: 'https://x/{value}',
+    embed_height: '1px',
+    value_patterns: [
+      { match: '^(?<id>[A-Za-z0-9]{4})$', value: 'p/{id}' },
+    ],
+  },
+};
+
+test('value_patterns: named groups (no template) override scope directly', () => {
+  const e = embed2('artistslug', 'someartist/song/some-slug');
+  assert.strictEqual(e.src, 'https://x/someartist/some-slug');
+});
+
+test('value_patterns: a match with no "/" falls through unchanged (plain override)', () => {
+  const e = embed2('artistslug', 'plain-value');
+  assert.strictEqual(e.src, 'https://x/default/plain-value');
+});
+
+test('value_patterns: a "value" template is substituted using the matched groups', () => {
+  const e = embed2('prefixed', 'ABCD');
+  assert.strictEqual(e.src, 'https://x/p/ABCD');
+});
+
+test('value_patterns: an empty/bare value (true) is left alone, no pattern applied', () => {
+  const e = embed2('prefixed', true);
+  assert.strictEqual(e.src, 'https://x/');
+});
+
+test('value_patterns: an invalid regex warns and is skipped, falling through to plain value', () => {
+  const handlers = {
+    bad: {
+      embed_url: 'https://x/{value}',
+      value_patterns: [{ match: '(unterminated' }],
+    },
+  };
+  const { result, warnings } = captureWarnings(() => {
+    const songs = resolveSongs({ bad: 'raw' }, { ctx: CTX, handlers });
+    return songs[0].embed;
+  });
+  assert.strictEqual(result.src, 'https://x/raw');
+  assert.ok(warnings.some((w) => /invalid value_patterns regex/.test(w)));
+});
+
+// Resolve a single audio entry against PATTERNED (config carries a `default`
+// top-level scalar for the artistslug handler's {artist|default} fallback).
+function embed2(service, value) {
+  const songs = resolveSongs(
+    { [service]: value },
+    { ctx: CTX, config: { default: 'default' }, handlers: PATTERNED },
+  );
+  return songs[0] && songs[0].embed;
+}
+
+// ── value_patterns (builtin handlers) ───────────────────────────────────────
+
+const BUILTINS = loadSongHandlers({ song_handlers: { audiomack: { artist: 'saltysojourner' } } });
+
+function builtinEmbed(service, value) {
+  const songs = resolveSongs({ [service]: value }, { ctx: CTX, handlers: BUILTINS });
+  return songs[0] && songs[0].embed;
+}
+
+function builtinLink(service, value) {
+  const songs = resolveSongs({ [service]: value }, { ctx: CTX, handlers: BUILTINS });
+  return songs[0] && songs[0].link;
+}
+
+test('audiomack: a plain slug override replaces only {value|slug}, artist stays configured', () => {
+  const e = builtinEmbed('audiomack', 'my-shepherd');
+  assert.strictEqual(e.src, 'https://audiomack.com/embed/saltysojourner/song/my-shepherd');
+});
+
+test('audiomack: an "artist/song/slug" value overrides both artist and slug', () => {
+  const e = builtinEmbed('audiomack', 'other_account/song/my-shepherd');
+  assert.strictEqual(e.src, 'https://audiomack.com/embed/other_account/song/my-shepherd');
+});
+
+test('audiomack: a full pasted URL is accepted the same way', () => {
+  const e = builtinEmbed('audiomack', 'https://audiomack.com/embed/other_account/song/my-shepherd');
+  assert.strictEqual(e.src, 'https://audiomack.com/embed/other_account/song/my-shepherd');
+});
+
+test('audiomack: a bare line (no value) still falls back to the poem slug', () => {
+  const e = builtinEmbed('audiomack', true);
+  assert.strictEqual(e.src, 'https://audiomack.com/embed/saltysojourner/song/s');
+});
+
+test('suno: a bare 16-char ID infers the "s/" short-link form', () => {
+  const l = builtinLink('suno', 'A24WTEpznxVMtA5x');
+  assert.strictEqual(l.href, 'https://suno.com/s/A24WTEpznxVMtA5x');
+});
+
+test('suno: a bare UUID infers the "song/" full-link form', () => {
+  const l = builtinLink('suno', '12345678-1234-1234-1234-123456789abc');
+  assert.strictEqual(l.href, 'https://suno.com/song/12345678-1234-1234-1234-123456789abc');
+});
+
+test('suno: an explicit "s/…" value passes through unchanged', () => {
+  const l = builtinLink('suno', 's/A24WTEpznxVMtA5x');
+  assert.strictEqual(l.href, 'https://suno.com/s/A24WTEpznxVMtA5x');
+});
+
+test('suno: a full pasted URL is reduced to its "s/…" tail', () => {
+  const l = builtinLink('suno', 'https://suno.com/s/A24WTEpznxVMtA5x');
+  assert.strictEqual(l.href, 'https://suno.com/s/A24WTEpznxVMtA5x');
+});
+
+test('mega: a full share URL is reduced to "<id>#<key>"', () => {
+  const e = builtinEmbed('mega', 'https://mega.nz/file/AbC1dEfG#h1JkLmN0pQ');
+  assert.strictEqual(e.src, 'https://mega.nz/embed/AbC1dEfG#h1JkLmN0pQ');
+});
+
+test('mega: the bare "<id>#<key>" form still works unchanged', () => {
+  const e = builtinEmbed('mega', 'AbC1dEfG#h1JkLmN0pQ');
+  assert.strictEqual(e.src, 'https://mega.nz/embed/AbC1dEfG#h1JkLmN0pQ');
+});
