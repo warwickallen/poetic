@@ -991,6 +991,63 @@ class PoemParser {
   }
 
   /**
+   * Parse the optional trailing param list on an audio (song-service) line —
+   * `(audio)`, `(video)`, `(ratio=16/9)`, `(video, ratio=21:9)`, `(height=360)`.
+   *
+   * An optional leading bare token (an identifier NOT followed by `=`) is the
+   * media type: `audio` or `video`. The remaining `key=value` pairs are parsed
+   * by the shared quote-aware parseParamList(). Recognised keys are `ratio`,
+   * `height`, and the reserved (not-yet-applied) `width`; unknown bare tokens
+   * and unknown keys warn and are ignored. Ratio/height values are stored raw;
+   * they are normalised and validated later, in song-handlers.js resolveSongs().
+   *
+   * @param {string} paramStr - the trailing "(...)" group, including the parens
+   * @param {string} service  - the lower-cased service name (for warnings)
+   * @returns {{ media?: string, ratio?: string, height?: string }}
+   */
+  parseAudioParams(paramStr, service) {
+    const out = {};
+    const inner = paramStr.slice(1); // drop the opening '('
+
+    // Peel an optional leading bare media token (identifier not followed by '=').
+    let rest = inner;
+    const bare = inner.match(/^\s*([A-Za-z][A-Za-z0-9_-]*)\s*(?=[,)])/);
+    if (bare) {
+      const token = bare[1].toLowerCase();
+      if (token === 'audio' || token === 'video') {
+        out.media = token;
+      } else {
+        console.warn(`Warning: audio line for "${service}" has an unknown media token "${bare[1]}" — ignoring it.`);
+      }
+      rest = inner.slice(bare[0].length);
+      if (rest[0] === ',') rest = rest.slice(1); // drop the separator after the token
+    }
+
+    // Parse any remaining key=value pairs with the shared quote-aware scanner.
+    const params = this.parseParamList('(' + rest);
+    if (params === null) {
+      // parseParamList returns null both for a genuinely malformed list and for
+      // "no pairs at all" (e.g. "(audio)"): only warn when text actually remains.
+      if (rest.replace(/[\s)]/g, '') !== '') {
+        console.warn(`Warning: audio line for "${service}" has a malformed parameter list "${paramStr}" — ignoring it.`);
+      }
+      return out;
+    }
+
+    for (const [key, val] of Object.entries(params)) {
+      const k = key.toLowerCase();
+      if (k === 'ratio' || k === 'height') {
+        out[k] = val;
+      } else if (k === 'width') {
+        // reserved for future use — accepted silently, not yet applied.
+      } else {
+        console.warn(`Warning: audio line for "${service}" has an unknown parameter "${key}" — ignoring it.`);
+      }
+    }
+    return out;
+  }
+
+  /**
    * Parse audio section
    */
   parseAudio() {
@@ -1011,24 +1068,42 @@ class PoemParser {
       }
 
       // A song line names a service, either bare ("Audiomack") or with a value
-      // ("Suno: s/xyz", "YouTube: dQw4…"). The service becomes a lower-cased key;
-      // a song handler (builtin or from .poetic-config.yaml) renders it later.
-      // Anything that is not a single service token stops the audio section,
-      // matching the old behaviour for stray prose before a missing ==== marker.
-      const m = trimmed.match(/^([A-Za-z][\w-]*)\s*(?::\s*(.*))?$/);
+      // ("Suno: s/xyz", "YouTube: dQw4…"), plus an optional trailing param list
+      // ("Mega: id#key (video, ratio=21:9)"). The service becomes a lower-cased
+      // key; a song handler (builtin or from .poetic-config.yaml) renders it
+      // later. The trailing " (...)" group is matched separately so it is not
+      // swallowed into the value (song values contain no whitespace-preceded
+      // "(", so a whitespace-preceded group is unambiguous). Anything that is
+      // not a service line stops the audio section, matching the behaviour for
+      // stray prose before a missing ==== marker.
+      const m = trimmed.match(/^([A-Za-z][\w-]*)\s*(?::\s*(.*?))?(?:\s+(\(.*\)))?$/);
       if (!m) {
         break;
       }
       const key = m[1].toLowerCase();
-      if (m[2] === undefined) {
-        audio[key] = true;
-        hasAudio = true;
-      } else {
-        const value = m[2].trim();
-        if (value) {
-          audio[key] = value;
+      const rawValue = m[2];   // undefined for a bare service line
+      const paramStr = m[3];   // undefined when there is no trailing param list
+
+      if (paramStr === undefined) {
+        if (rawValue === undefined) {
+          audio[key] = true;
           hasAudio = true;
+        } else {
+          const value = rawValue.trim();
+          if (value) {
+            audio[key] = value;
+            hasAudio = true;
+          }
         }
+      } else {
+        const value = (rawValue === undefined || rawValue.trim() === '') ? true : rawValue.trim();
+        const parsed = this.parseAudioParams(paramStr, key);
+        const entry = { value };
+        if (parsed.media) entry.media = parsed.media;
+        if (parsed.ratio != null) entry.ratio = parsed.ratio;
+        if (parsed.height != null) entry.height = parsed.height;
+        audio[key] = entry;
+        hasAudio = true;
       }
       this.next();
     }

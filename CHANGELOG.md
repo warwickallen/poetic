@@ -9,6 +9,27 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **MEGA.nz builtin song handler (`Mega:`).** A public MEGA file link (its
+  `<id>#<key>` identifier) becomes an inline, lazy-loaded player that plays
+  **both audio and video** files, with full-screen and picture-in-picture, on
+  GitHub Pages and Blogger.
+- **Configurable player size — per handler and per song.** Handlers declare a
+  size with `embed_height` / `embed_aspect_ratio`, or, for multi-media handlers,
+  `default_media` + a `media_sizes` map of per-type profiles. Authors override
+  it per song with a trailing param list on the audio line —
+  `(audio|video)`, `(ratio=16/9)` (also `16:9`), `(height=360)`, or a
+  combination such as `(video, ratio=21:9)`. This replaces the previously
+  hard-coded Audiomack player height.
+- **Deep-merge overrides for song handlers.** A consumer `song_handlers` entry
+  now merges into a builtin key-by-key (nested maps like `media_sizes` merge
+  recursively; a `null` value deletes a key), so a consumer can retune one size
+  profile without redeclaring the handler's `embed_url`.
+- **Embed iframes grant full-screen / picture-in-picture.** Lazy-loaded player
+  iframes are created with `allow="autoplay; fullscreen; picture-in-picture;
+  encrypted-media"` and `allowfullscreen`.
+
 ### Fixed
 
 - **`scripts/sync-framework.sh` now handles an empty `skip_paths` list safely.**

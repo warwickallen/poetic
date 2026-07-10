@@ -160,9 +160,13 @@ syn match poemDate "^\d\{4\}-\d\{2\}-\d\{2\}$"
 " audio section without a region: a stray identifier-shaped line
 " elsewhere in the poem is never a nextgroup target, so it is never
 " mistaken for a song service.
+" A song value may be followed by an optional trailing parameter list
+" ("Mega: id#key (video, ratio=21:9)") that configures the embed player's size
+" and media type. It is highlighted with the same label-parameter groups
+" (poemParams) via contains=, so keys/values/delimiters match the label form.
 syn match poemSongService "^[a-zA-Z][a-zA-Z0-9_-]*" contained
       \ nextgroup=poemSongValue,poemSongService skipnl skipempty
-syn match poemSongValue ":\s\+\S.*$" contained
+syn match poemSongValue ":\s\+\S.*$" contained contains=poemParams
       \ nextgroup=poemSongService skipnl skipempty
 
 " Analysis section: rendered as GitHub-Flavoured Markdown.

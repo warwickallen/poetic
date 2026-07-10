@@ -22,11 +22,36 @@
 #                                    {audiomack_artist}
 # A fallback chain {a|b} resolves to the first token that is non-empty, so
 # {value|slug} means "the author's value, or the poem slug if none was given".
+#
+# Embed player size is configurable (see docs/BUILD.md). A handler that serves a
+# single kind of media sets `embed_height` OR `embed_aspect_ratio` directly. A
+# handler that serves several media kinds (e.g. mega: audio and video) sets
+# `default_media` plus a `media_sizes` map of per-type size profiles, each being
+# a `height` OR an `aspect_ratio`. An author may override the size per song with
+# a trailing `(audio|video|ratio=…|height=…)` param list on the audio line.
+#
+# Consumers override handlers under `song_handlers:` in .poetic-config.yaml. The
+# override deep-merges key-by-key into the builtin (nested maps like
+# `media_sizes` merge recursively); a `null` value deletes a key. So a consumer
+# can retune just `media_sizes.audio.height` without redeclaring `embed_url`.
 
 audiomack:
   embed_url: "https://audiomack.com/embed/{audiomack_artist}/song/{value|slug}"
   button_label: "🎵 Load Audiomack Player"
+  embed_height: "252px"
 
 suno:
   link_url: "https://suno.com/{value}"
   link_label: "recording on Suno"
+
+mega:
+  embed_url: "https://mega.nz/embed/{value}"
+  button_label: "🎵 Load MEGA Player"
+  default_media: audio
+  media_sizes:
+    # MEGA renders an audio file as a ~square cover-art viewport (not a thin
+    # control bar), so a 1/1 ratio shows the artwork fully and stays responsive;
+    # video is 16:9. Override per song with (ratio=…)/(height=…), or per consumer
+    # in .poetic-config.yaml.
+    audio: { aspect_ratio: "1 / 1" }
+    video: { aspect_ratio: "16 / 9" }

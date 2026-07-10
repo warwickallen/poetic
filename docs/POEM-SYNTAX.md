@@ -171,6 +171,7 @@ Section for song links and embedded players. The section and its markers are opt
 ```
 [<Service>]
 [<Service>: <value>]
+[<Service>: <value> (<params>)]
 
 ====
 ```
@@ -184,21 +185,59 @@ Section for song links and embedded players. The section and its markers are opt
   or track ID. Whitespace around the colon is trimmed
 - Service names are case-insensitive; the service becomes a lower-cased key in
   the poem's YAML `audio` map
-- **Audiomack** and **Suno** ship as builtin services, resolved by handlers
-  defined in the framework's `src/song-handlers.yaml`. Any other service (e.g.
-  `YouTube`, `Spotify`) is rendered once a matching handler is added under
-  `song_handlers:` in `.poetic-config.yaml` — see
+- **Audiomack**, **Suno**, and **Mega** ship as builtin services, resolved by
+  handlers defined in the framework's `src/song-handlers.yaml`. Any other
+  service (e.g. `YouTube`, `Spotify`) is rendered once a matching handler is
+  added under `song_handlers:` in `.poetic-config.yaml` — see
   [Custom song handlers](BUILD.md#custom-song-handlers) in `docs/BUILD.md`
 - A service with no matching handler at build time is skipped, with a build
   warning, rather than failing the build
 - Lines are optional and may appear in any order; if none are present, the
   section is empty
-- Any line that does not match the `<Service>` or `<Service>: <value>` form
-  ends the audio section (matching the trailing-content rule used elsewhere
-  when a `====` marker is missing)
+- A service line may end with an optional **parameter list** in parentheses
+  (see [Player size and media type](#player-size-and-media-type) below). It must
+  be separated from the value by whitespace so it is not read as part of the
+  value
+- Any line that does not match the `<Service>`, `<Service>: <value>`, or
+  `<Service>: <value> (<params>)` form ends the audio section (matching the
+  trailing-content rule used elsewhere when a `====` marker is missing)
 - The `====` end marker is only required if there are subsequent non-empty
   sections
 - Any text after the end marker on the same line is ignored
+
+### MEGA
+
+The builtin **Mega** service embeds a [MEGA.nz](https://mega.nz) media player
+directly on the page. It plays **both audio and video** files (with normal,
+picture-in-picture, and full-screen playback) and works on GitHub Pages and
+Blogger.
+
+The value is the identifier from a public MEGA file link — the part after
+`https://mega.nz/file/`, i.e. `<id>#<key>`:
+
+```
+Mega: AbC1dEfG#h1JkLmN0pQrStUvWxYz0123456789AbCdEfGh
+```
+
+### Player size and media type
+
+An embed line may carry a trailing parameter list to set the player's size and
+media type. It reuses the same `(key=value, …)` syntax as
+[block parameters](#3b-block-parameters), plus an optional leading bare
+`audio` / `video` token:
+
+| Parameter form         | Effect                                                        |
+|------------------------|---------------------------------------------------------------|
+| `(audio)` / `(video)`  | Select the handler's standard audio or video size profile     |
+| `(ratio=16/9)`         | Size by an explicit aspect ratio (`/` separator)              |
+| `(ratio=16:9)`         | Same, `:` separator (normalised to `16 / 9`)                  |
+| `(height=360)`         | Fixed pixel height (a bare number is treated as `px`; a CSS length such as `360px` is also accepted) |
+| `(video, ratio=21:9)`  | A media token and a parameter together; `ratio` wins for sizing, and the media type is still recorded |
+
+Precedence when several apply: `ratio=` → `height=` → the media type's standard
+size → the handler's base size → the framework default. A malformed `ratio` or
+`height` is ignored (with a build warning) and the media-type default is used.
+Unknown tokens or keys are ignored with a warning. `width` is reserved.
 
 ### Example
 
@@ -206,6 +245,7 @@ Section for song links and embedded players. The section and its markers are opt
 Audiomack
 Suno: s/SongLink12345678
 YouTube: dQw4w9WgXcQ
+Mega: AbC1dEfG#h1JkLmN0pQrStUvWxYz0123456789AbCdEfGh (audio)
 
 ====
 ```

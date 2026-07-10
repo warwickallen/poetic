@@ -164,7 +164,14 @@ attributes, built at render time from the poem's song handler:
 No third-party iframe request happens until the visitor clicks the button, at
 which point `poetic.js` creates the `<iframe>` inside the adjacent
 `.song-embed-player` element. Player dimensions are controlled by CSS, not
-JavaScript — see [Custom song handlers](#custom-song-handlers) below.
+JavaScript — see [Player size](#player-size) below.
+
+Every created iframe is granted `allow="autoplay; fullscreen;
+picture-in-picture; encrypted-media"` and `allowfullscreen`. This is a single
+global default that is harmless for services that do not use those capabilities
+and is required for players such as MEGA to offer full-screen and
+picture-in-picture. (Autoplay with sound is still blocked cross-origin by the
+browser, so playback always starts from the visitor's click.)
 
 Set the Audiomack artist referenced by the builtin `audiomack` handler's URL
 template in `.poetic-config.yaml`:
@@ -178,10 +185,10 @@ audiomack_artist: saltysojourner
 Song links and embedded players are driven by declarative **song handlers** —
 a mapping from a service name (as written in a poem's Audio section, e.g.
 `Audiomack` or `YouTube`) to a small definition of URLs and labels. Poetic
-ships two builtin handlers, `audiomack` and `suno`, defined in the framework's
-`src/song-handlers.yaml`. Adding support for another service needs only YAML
-and CSS — no framework code — by adding an entry under `song_handlers:` in
-`.poetic-config.yaml`.
+ships three builtin handlers, `audiomack`, `suno`, and `mega`, defined in the
+framework's `src/song-handlers.yaml`. Adding support for another service needs
+only YAML and CSS — no framework code — by adding an entry under
+`song_handlers:` in `.poetic-config.yaml`.
 
 A handler definition may set:
 
@@ -189,6 +196,8 @@ A handler definition may set:
 - `embed_url` (+ `button_label`) — renders a lazy-loaded iframe (see
   [Shared song-embed loader](#shared-song-embed-loader-publicpoeticjs) above);
   no third-party request happens until the visitor clicks the button
+- player-size keys — `embed_height`, `embed_aspect_ratio`, `default_media`, and
+  `media_sizes` (see [Player size](#player-size) below)
 
 At least one of `link_url` / `embed_url` is required; a handler may define
 both.
@@ -227,6 +236,66 @@ A **fallback chain** `{a|b|c}` resolves to the first token in the list that is
 non-empty. For example, the builtin `audiomack` handler uses
 `{value|slug}` — the author's value if one was given, otherwise the poem's
 slug.
+
+#### Player size
+
+An embed handler declares the player's size. A handler that serves a single kind
+of media sets one of:
+
+- `embed_height` — a fixed CSS height (e.g. `"252px"`), the builtin `audiomack`
+  handler's size
+- `embed_aspect_ratio` — a fixed `width / height` ratio (e.g. `"16 / 9"`); the
+  iframe height is then computed from its width
+
+A handler that serves several kinds of media (like `mega`: audio and video) sets:
+
+- `default_media` — the media type used when the author gives no `audio`/`video`
+  token
+- `media_sizes` — a map of media type → size profile, where each profile is a
+  `height` **or** an `aspect_ratio`:
+
+```yaml
+mega:
+  embed_url: "https://mega.nz/embed/{value}"
+  button_label: "🎵 Load MEGA Player"
+  default_media: audio
+  media_sizes:
+    audio: { aspect_ratio: "1 / 1" }
+    video: { aspect_ratio: "16 / 9" }
+```
+
+MEGA renders an audio file as a roughly square cover-art viewport, so the builtin
+`mega` audio profile uses a `1 / 1` ratio (not a fixed bar height); video uses
+`16 / 9`.
+
+Authors override the size per song with a trailing parameter list on the audio
+line — `(audio)`, `(video)`, `(ratio=16/9)`, `(height=360)`, or a combination
+such as `(video, ratio=21:9)`. See
+[Player size and media type](POEM-SYNTAX.md#player-size-and-media-type) in
+`docs/POEM-SYNTAX.md`.
+
+At render time the resolved size is emitted as a CSS custom property on the
+`.song-embed-player` element: either `--song-embed-height` (fixed height) or
+`--song-embed-aspect-ratio` (with an added `song-embed-player--aspect` modifier
+class). `poetic.css` consumes those, falling back to `252px` when a handler
+declares no size. The resolved media type is also exposed as `data-embed-media`
+and a `song-embed--<service>--<media>` class for per-media styling.
+
+#### Overriding builtin handlers
+
+A consumer entry under `song_handlers:` with the same name as a builtin
+**deep-merges** into it, key by key: scalar keys are overridden, nested maps
+(like `media_sizes`) merge recursively, and a `null` value deletes a key. So a
+consumer can retune just one size profile without redeclaring the handler's
+`embed_url`:
+
+```yaml
+song_handlers:
+  mega:
+    media_sizes:
+      audio: { height: "300px" }   # override only the audio height
+      video: { aspect_ratio: "4 / 3" }
+```
 
 #### Styling custom handlers
 
@@ -277,7 +346,7 @@ Supported keys:
 | `favicon` | `poetic-logo.svg` | Filename (inside `public/`) of the browser-tab icon |
 | `subtitle` | `My Poems` | Subtitle shown below the site title on `index.html` |
 | `audiomack_artist` | _(none)_ | Audiomack artist slug used for embedded audio players (e.g. `saltysojourner`) |
-| `song_handlers` | _(none)_ | Map of custom song-handler definitions (service name → `link_url`/`embed_url`/labels), merged with the builtin `audiomack`/`suno` handlers; see [Custom song handlers](#custom-song-handlers) |
+| `song_handlers` | _(none)_ | Map of custom song-handler definitions (service name → `link_url`/`embed_url`/labels/size), deep-merged with the builtin `audiomack`/`suno`/`mega` handlers; see [Custom song handlers](#custom-song-handlers) |
 | `skip_paths` | _(none)_ | List of framework paths to skip during sync |
 | `auto_sync` | _(off)_ | Set to `true` to enable the hourly scheduled sync workflow |
 | `sync_schedule` | `weekly` | How often the scheduled sync runs: `hourly`, `daily`, or `weekly` |

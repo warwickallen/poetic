@@ -29,6 +29,7 @@ and optionally publish to GitHub Pages.
 - **`.poem` format** — a readable plain-text syntax for structured poetry (see [`docs/POEM-SYNTAX.md`](docs/POEM-SYNTAX.md) and the formal grammar in [`poem-syntax.ebnf`](poem-syntax.ebnf))
 - **Build pipeline** — converts `.poem` → YAML → HTML with a Pug template
 - **Index & all-poems view** — generates `index.html` and `all-poems.html` for browsing your collection
+- **Self-hosted MEGA player** — a builtin `Mega:` song handler turns a public [MEGA.nz](https://mega.nz) link into an inline **audio and video** player (full-screen and picture-in-picture), lazy-loaded on click and working on both GitHub Pages and Blogger
 - **Vim syntax highlighting** — filetype detection and highlighting for `.poem` files (see [`editors/vim/`](editors/vim/))
 - **GitHub Pages deployment** — included workflow deploys your published HTML on push to `main`
 - **Optional Blogger publishing** — auto-publish poems to a Blogger blog on push to `main` (off by default; see [`docs/BLOGGER.md`](docs/BLOGGER.md))

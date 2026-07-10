@@ -16,6 +16,10 @@ document.addEventListener('click', function (e) {
   iframe.setAttribute('scrolling', 'no');
   iframe.setAttribute('frameborder', '0');
   iframe.setAttribute('loading', 'lazy');
+  // Grant the capabilities a media player needs (harmless for services that
+  // don't use them; required for MEGA's fullscreen / picture-in-picture).
+  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
+  iframe.setAttribute('allowfullscreen', '');
   iframe.title = btn.dataset.title || '';
   player.classList.remove('hidden'); player.appendChild(iframe);
 });

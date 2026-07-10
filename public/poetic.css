@@ -675,11 +675,20 @@ div.analysis {
 .song-embed-player iframe {
   width: 100%;
   border: 0;
+  /* Player height is set per song at build time via the --song-embed-height
+     custom property on .song-embed-player (see song-handlers.js /
+     docs/BUILD.md). 252px is the framework fallback when a handler declares no
+     size. A consumer can still hard-override a single service with a
+     .song-embed--<service> .song-embed-player iframe rule in custom.css. */
+  height: var(--song-embed-height, 252px);
 }
 
-/* Per-service embedded-player height (the service's natural player size). */
-.song-embed--audiomack .song-embed-player iframe {
-  height: 252px;
+/* Aspect-ratio players (e.g. MEGA video) size to a fixed ratio rather than a
+   fixed height. The --aspect modifier class and the --song-embed-aspect-ratio
+   custom property are emitted together at build time. */
+.song-embed-player--aspect iframe {
+  height: auto;
+  aspect-ratio: var(--song-embed-aspect-ratio);
 }
 
 /* Parentheses around link-type song items are decorative — CSS, not markup — so a

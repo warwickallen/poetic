@@ -71,6 +71,11 @@ test('renderFragment: Audiomack embed button uses data-embed-src/data-title and 
   );
   assert.ok(html.includes('data-title="Test Poem"'), 'must have data-title attribute');
   assert.ok(html.includes('🎵 Load Audiomack Player'), 'button text must be the Audiomack load label');
+  assert.ok(
+    html.includes('style="--song-embed-height: 252px"'),
+    'Audiomack must emit its fixed-height size custom property'
+  );
+  assert.ok(!html.includes('song-embed-player--aspect'), 'a fixed-height player must NOT use the aspect modifier');
   assert.ok(!html.includes('onclick'), 'button must have NO onclick attribute');
   assert.ok(!html.includes('load-audiomack-btn'), 'must not use the old load-audiomack-btn class');
   assert.ok(!html.includes('data-artist'), 'must not have a data-artist attribute');
@@ -90,6 +95,69 @@ test('renderFragment: NO inline loadAudiomackPlayer function', () => {
     !html.includes('<script'),
     'fragment must not contain any <script> block'
   );
+});
+
+// ── MEGA embed (audio + video sizing) ──────────────────────────────────────
+
+const MEGA_AUDIO_YAML = `
+title: Mega Poem
+author: Test Author
+date: 1970-01-31
+versions:
+  - segments:
+      - lines: "Hello world\\n"
+audio:
+  mega:
+    value: AbC1dEfG#Key1234567890
+    media: audio
+`;
+
+const MEGA_VIDEO_YAML = `
+title: Mega Poem
+author: Test Author
+date: 1970-01-31
+versions:
+  - segments:
+      - lines: "Hello world\\n"
+audio:
+  mega:
+    value: AbC1dEfG#Key1234567890
+    media: video
+`;
+
+test('renderFragment: MEGA audio embed uses the /embed/ src, MEGA label, square aspect var and data-embed-media', () => {
+  const { yamlPath } = writeTempYaml(MEGA_AUDIO_YAML);
+  const html = renderFragment(loadPoemData(yamlPath), { config: {} });
+
+  assert.ok(html.includes('class="song-embed-btn"'), 'must have song-embed-btn class');
+  assert.ok(html.includes('song-embed--mega'), 'must have song-embed--mega wrapper class');
+  assert.ok(html.includes('song-embed--mega--audio'), 'must carry the per-media class');
+  assert.ok(
+    html.includes('data-embed-src="https://mega.nz/embed/AbC1dEfG#Key1234567890"'),
+    'must build the /embed/ URL from the id#key value'
+  );
+  assert.ok(html.includes('data-embed-media="audio"'), 'must expose the resolved media type');
+  assert.ok(html.includes('🎵 Load MEGA Player'), 'button text must be the MEGA load label');
+  assert.ok(
+    html.includes('style="--song-embed-aspect-ratio: 1 / 1"'),
+    'MEGA audio (cover-art viewport) must emit the square aspect-ratio custom property'
+  );
+  assert.ok(html.includes('song-embed-player--aspect'), 'an aspect-sized player must use the aspect modifier');
+  assert.ok(!html.includes('--song-embed-height'), 'MEGA audio must NOT emit a fixed height');
+});
+
+test('renderFragment: MEGA video embed emits the aspect-ratio var and --aspect modifier class', () => {
+  const { yamlPath } = writeTempYaml(MEGA_VIDEO_YAML);
+  const html = renderFragment(loadPoemData(yamlPath), { config: {} });
+
+  assert.ok(html.includes('song-embed--mega--video'), 'must carry the per-media video class');
+  assert.ok(html.includes('data-embed-media="video"'), 'must expose media=video');
+  assert.ok(html.includes('song-embed-player--aspect'), 'video must use the aspect modifier class');
+  assert.ok(
+    html.includes('style="--song-embed-aspect-ratio: 16 / 9"'),
+    'video must emit the aspect-ratio size custom property'
+  );
+  assert.ok(!html.includes('--song-embed-height'), 'video must NOT emit a fixed height');
 });
 
 test('renderFragment: Suno renders a plain link with NO literal parentheses (styling is CSS now)', () => {

@@ -207,7 +207,11 @@ whitespace_or_blank = { whitespace } ;
 
 audio_section = { song_line, newline } ;
 
-song_line = service_name, [ ":", whitespace, value ] ;
+(* A song line names a service and, optionally, a value and a trailing parameter
+   list. The parameter list (whitespace-separated from the value, so it is not
+   part of the value) configures the embed player's size and media type; see
+   song_param_list. Example: "Mega: id#key (video, ratio=21:9)". *)
+song_line = service_name, [ ":", whitespace, value ], [ whitespace, song_param_list ] ;
 
 service_name = letter, { letter | digit | "-" | "_" } ;
 
@@ -215,7 +219,19 @@ value = url_path ;
 
 url_path = { url_char } ;
 
-url_char = letter | digit | "/" | "-" | "_" | "." | "~" | ":" | "@" | "!" | "$" | "&" | "'" | "(" | ")" | "*" | "+" | "," | ";" | "=" ;
+url_char = letter | digit | "/" | "-" | "_" | "." | "~" | ":" | "@" | "!" | "$" | "&" | "'" | "(" | ")" | "*" | "+" | "," | ";" | "=" | "#" ;
+
+(* A song parameter list reuses the label parameter grammar (parameter /
+   parameter_value, and the same quote-aware scanning) but additionally permits
+   an optional leading bare media_token ("audio" or "video") before any
+   parameter. Recognised parameter keys are "ratio", "height", and the reserved
+   "width"; unknown bare tokens and unknown keys are ignored with a warning. *)
+song_param_list = "(", whitespace_or_blank,
+                  [ media_token | parameter ],
+                  { whitespace_or_blank, ",", whitespace_or_blank, parameter },
+                  whitespace_or_blank, ")" ;
+
+media_token = "audio" | "video" ;
 
 (* ============================================================================
    POSTSCRIPT SECTION

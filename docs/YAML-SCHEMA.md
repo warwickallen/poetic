@@ -45,19 +45,29 @@ versions:
 audio:
   audiomack: true
   suno: s/...
+  mega:
+    value: AbC1dEfG#h1Jk...
+    media: video
+    ratio: "21 / 9"
 ```
 
 **Notes:**
 - `audio` is a map of `<service>: <value>`, one entry per song line in the
   `.poem` source's Audio section. Each key is a **song-handler name** — a
-  builtin (`audiomack`, `suno`) or a service configured under `song_handlers:`
-  in `.poetic-config.yaml` (e.g. `youtube`)
-- The value is `true` for a bare service line (presence only, e.g.
-  `Audiomack`), or a string for a service line with a value (e.g. `suno: s/...`
-  from `Suno: s/...`) — typically a relative path or ID that the handler's
-  URL template expands into a full URL
-- Rendering (link vs. embedded player, URL construction, labels) is driven
-  entirely by the matching song handler, not by this schema — see
+  builtin (`audiomack`, `suno`, `mega`) or a service configured under
+  `song_handlers:` in `.poetic-config.yaml` (e.g. `youtube`)
+- The value is one of three forms:
+  - `true` for a bare service line (presence only, e.g. `Audiomack`)
+  - a **string** for a service line with a value (e.g. `suno: s/...` from
+    `Suno: s/...`) — typically a relative path or ID that the handler's URL
+    template expands into a full URL
+  - a **map** `{ value, media?, ratio?, height? }` when the source line carried
+    a trailing player-size parameter list (e.g. `Mega: <id>#<key> (video)`).
+    `value` holds the id/path (or `true` for a bare line with params); `media`
+    is `audio` or `video`; `ratio`/`height` are the raw author-supplied size
+    overrides (normalised and validated at render time)
+- Rendering (link vs. embedded player, URL construction, labels, player size)
+  is driven entirely by the matching song handler, not by this schema — see
   [Custom song handlers](BUILD.md#custom-song-handlers) in `docs/BUILD.md`
 
 ### Postscript Notes

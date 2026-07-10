@@ -98,14 +98,25 @@ mixin poemContent
           - if (song.link) songItemClass += ' song-item-link'
           div(class=songItemClass)
             if song.embed
-              div(class=`song-embed song-embed--${song.service}`)
+              //- The embed's player size is emitted as a CSS custom property on
+              //- the .song-embed-player (one of --song-embed-height OR
+              //- --song-embed-aspect-ratio; the latter adds the --aspect
+              //- modifier class). The resolved media type, when known, is
+              //- exposed as data-embed-media + a song-embed--<service>--<media>
+              //- class for per-media styling / forward-compat.
+              - let embedClass = `song-embed song-embed--${song.service}`
+              - if (song.embed.media) embedClass += ` song-embed--${song.service}--${song.embed.media}`
+              div(class=embedClass data-embed-media=song.embed.media)
                 button.song-embed-btn(
                   id=`song-embed-btn--${song.service}--${slug}`
                   type="button"
                   data-embed-src=song.embed.src
                   data-title=song.embed.title
                 )= song.embed.buttonLabel
-                div(class="song-embed-player hidden")
+                - let playerClass = 'song-embed-player hidden'
+                - if (song.embed.sizeIsAspect) playerClass += ' song-embed-player--aspect'
+                - let playerStyle = song.embed.sizeVar ? `${song.embed.sizeVar}: ${song.embed.sizeValue}` : false
+                div(class=playerClass style=playerStyle)
             if song.link
               a.song-link-anchor(
                 class=`song-link--${song.service}`

@@ -63,6 +63,9 @@ versions:
 audio:
   audiomack: true
   suno: s/SongLink12345678
+  mega:
+    value: ExampleFileId1#ExampleDecryptionKey1234567890abcdefghij
+    media: audio
 postscript:
   - label: Postscript
     content: |
@@ -122,3 +125,10 @@ analysis:
     <p>A fenced code block:</p>
     <pre><code>let answer = 42;
     </code></pre>
+labels:
+  - reflection
+  - nature
+directives:
+  - name: example.directive
+    attributes:
+      key: value

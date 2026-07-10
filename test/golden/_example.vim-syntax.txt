@@ -64,6 +64,7 @@
 
 [Audiomack]=poemSongService
 [Suno]=poemSongService [: s/SongLink12345678]=poemSongValue
+[Mega]=poemSongService [: ExampleFileId1#ExampleDecryptionKey1234567890abcdefghij ]=poemSongValue [(]=poemParamsDelim [audio]=poemParamKey [)]=poemParamsDelim
 
 [====]=poemEndMarkerMark [  # end of audio]=poemEndMarkerLineTrailing
 
