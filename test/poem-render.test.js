@@ -214,6 +214,43 @@ audio:
   assert.ok(html.includes('song-link--youtube'), 'link anchor must carry the song-link--youtube class');
 });
 
+test('renderFragment: a handler embed_allow/embed_allowfullscreen override renders as data-allow/data-allow-fullscreen', () => {
+  const { yamlPath } = writeTempYaml(`
+title: YouTube Poem
+author: Test Author
+date: 1970-01-31
+versions:
+  - segments:
+      - lines: "Hello world\\n"
+audio:
+  youtube: ID123
+`);
+  const poemData = loadPoemData(yamlPath);
+  const config = {
+    song_handlers: {
+      youtube: {
+        embed_url: 'https://www.youtube.com/embed/{value}',
+        button_label: '▶ YT',
+        embed_allow: 'autoplay; encrypted-media',
+        embed_allowfullscreen: false,
+      },
+    },
+  };
+  const html = renderFragment(poemData, { config });
+
+  assert.ok(html.includes('data-allow="autoplay; encrypted-media"'), 'must carry the handler\'s allow override');
+  assert.ok(html.includes('data-allow-fullscreen="false"'), 'an explicit false must render, not be dropped');
+});
+
+test('renderFragment: with no embed_allow/embed_allowfullscreen override, neither data attribute is rendered', () => {
+  const { yamlPath } = writeTempYaml(FIXTURE_YAML);
+  const poemData = loadPoemData(yamlPath);
+  const html = renderFragment(poemData, { config: { song_handlers: { audiomack: { artist: 'testartist' } } } });
+
+  assert.ok(!html.includes('data-allow='), 'no handler override means no data-allow attribute');
+  assert.ok(!html.includes('data-allow-fullscreen='), 'no handler override means no data-allow-fullscreen attribute');
+});
+
 test('renderFragment: an audio entry with no matching handler is silently skipped', () => {
   const { yamlPath } = writeTempYaml(`
 title: Bandcamp Poem

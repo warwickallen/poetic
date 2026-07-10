@@ -36,6 +36,11 @@ const HANDLERS = {
   plain: {
     embed_url: 'https://x/{value}',
   },
+  permissioned: {
+    embed_url: 'https://x/{value}',
+    embed_allow: 'autoplay; encrypted-media',
+    embed_allowfullscreen: false,
+  },
 };
 
 // Resolve a single audio entry against HANDLERS and return its embed model.
@@ -135,6 +140,26 @@ test('validation: malformed height warns and falls back to the media-type defaul
   assert.strictEqual(result.sizeVar, '--song-embed-aspect-ratio');
   assert.strictEqual(result.sizeValue, '16 / 9');
   assert.ok(warnings.some((w) => /malformed height/.test(w)));
+});
+
+// ── embed permissions (allow / allowfullscreen) ─────────────────────────────
+
+test('embed_allow/embed_allowfullscreen: a handler override is exposed on the embed model', () => {
+  const e = embed('permissioned', 'X');
+  assert.strictEqual(e.allow, 'autoplay; encrypted-media');
+  assert.strictEqual(e.allowFullscreen, 'false');
+});
+
+test('embed_allow/embed_allowfullscreen: absent on a handler leaves both unset (loader falls back to its default)', () => {
+  const e = embed('plain', 'X');
+  assert.strictEqual(e.allow, undefined);
+  assert.strictEqual(e.allowFullscreen, undefined);
+});
+
+test('embed_allowfullscreen: true is stringified, not dropped as a falsy value', () => {
+  const handlers = { x: { embed_url: 'https://x/{value}', embed_allowfullscreen: true } };
+  const songs = resolveSongs({ x: 'X' }, { ctx: CTX, handlers });
+  assert.strictEqual(songs[0].embed.allowFullscreen, 'true');
 });
 
 // ── loadSongHandlers deep-merge ──────────────────────────────────────────────

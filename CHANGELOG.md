@@ -7,6 +7,18 @@ affect behaviour visible to poem authors or site publishers.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Per-handler embed permission override.** A custom song handler can set
+  `embed_allow` and/or `embed_allowfullscreen` to override the `allow` /
+  `allowfullscreen` attributes `poetic.js` puts on that handler's lazy-loaded
+  iframe. Left unset, the handler's embeds keep using the framework's global
+  default (`autoplay; fullscreen; picture-in-picture; encrypted-media` +
+  `allowfullscreen`). See [Embed permissions](docs/BUILD.md#embed-permissions)
+  in `docs/BUILD.md`. Resolves TD26071002.
+
 ## [5.1.0] — 2026-07-10
 
 ### Added

@@ -33,6 +33,11 @@
 # a `height` OR an `aspect_ratio`. An author may override the size per song with
 # a trailing `(audio|video|ratio=…|height=…)` param list on the audio line.
 #
+# A handler may set `embed_allow` and/or `embed_allowfullscreen` to override the
+# iframe's `allow="…"` / `allowfullscreen` attributes for its own embeds; either
+# left unset falls back to poetic.js's global default
+# (`autoplay; fullscreen; picture-in-picture; encrypted-media` + `allowfullscreen`).
+#
 # Consumers override handlers under `song_handlers:` in .poetic-config.yaml. The
 # override deep-merges key-by-key into the builtin (nested maps like
 # `media_sizes` merge recursively); a `null` value deletes a key. So a consumer

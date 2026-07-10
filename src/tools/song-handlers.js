@@ -35,6 +35,11 @@
  * object-form audio value { value, media?, ratio?, height? }. resolveSongs()
  * resolves the effective player size and records the media type (see below).
  *
+ * A handler may also declare `embed_allow` and/or `embed_allowfullscreen` to
+ * override the iframe `allow` / `allowfullscreen` attributes poetic.js applies
+ * by default; either left unset falls back to poetic.js's global default (see
+ * the loader's click handler in public/poetic.js).
+ *
  * Exports:
  *   loadSongHandlers(config)                 - merged builtin + user handler map
  *   resolveSongs(audio, { ctx, config, handlers })
@@ -350,6 +355,13 @@ function resolveSongs(audio, opts = {}) {
         song.embed.sizeValue = size.sizeValue;
         song.embed.sizeIsAspect = size.sizeIsAspect;
       }
+      // Per-handler iframe permission override (see the docblock above); left
+      // unset, the template emits no data-allow[-fullscreen] attribute and
+      // poetic.js's global default applies. allowFullscreen is stringified so
+      // an explicit `false` still reaches the template as `data-allow-fullscreen="false"`
+      // rather than being dropped as a falsy attribute value.
+      if (handler.embed_allow != null) song.embed.allow = String(handler.embed_allow);
+      if (handler.embed_allowfullscreen != null) song.embed.allowFullscreen = String(!!handler.embed_allowfullscreen);
     }
     if (handler.link_url) {
       song.link = {

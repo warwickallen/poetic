@@ -107,11 +107,17 @@ mixin poemContent
               - let embedClass = `song-embed song-embed--${song.service}`
               - if (song.embed.media) embedClass += ` song-embed--${song.service}--${song.embed.media}`
               div(class=embedClass data-embed-media=song.embed.media)
+                //- data-allow[-fullscreen] carry a handler's embed_allow /
+                //- embed_allowfullscreen override, if any; absent unless the
+                //- handler set one, in which case poetic.js applies its
+                //- global default instead.
                 button.song-embed-btn(
                   id=`song-embed-btn--${song.service}--${slug}`
                   type="button"
                   data-embed-src=song.embed.src
                   data-title=song.embed.title
+                  data-allow=song.embed.allow
+                  data-allow-fullscreen=song.embed.allowFullscreen
                 )= song.embed.buttonLabel
                 - let playerClass = 'song-embed-player hidden'
                 - if (song.embed.sizeIsAspect) playerClass += ' song-embed-player--aspect'

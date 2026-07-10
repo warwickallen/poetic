@@ -16,15 +16,6 @@ Where `<id>` is a literal "TD" then the date followed by a zero-padded
 sequential number (starting at 1 for the the first entry of a day). I.e.:
 **TD*YYMMDDNN***
 
-## TD26071002 Per-handler override of the embed iframe allow / allowfullscreen
-
-`public/poetic.js` sets a single global `allow="autoplay; fullscreen;
-picture-in-picture; encrypted-media"` + `allowfullscreen` on every lazy-loaded
-embed iframe. A service needing a narrower or wider permission set has no way to
-override it. A future enhancement could let a handler declare its own `allow` /
-`allowfullscreen` (surfaced via `data-*` on the button and read by the loader).
-Deferred; the global default is sufficient for the current builtins.
-
 ## TD26071003 vim-syntax golden no longer pins the analysis-section markdown
 
 `test/fixtures/dump-syntax.vim` folds every builtin `markdown*` highlight group

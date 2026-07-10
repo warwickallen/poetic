@@ -17,9 +17,18 @@ document.addEventListener('click', function (e) {
   iframe.setAttribute('frameborder', '0');
   iframe.setAttribute('loading', 'lazy');
   // Grant the capabilities a media player needs (harmless for services that
-  // don't use them; required for MEGA's fullscreen / picture-in-picture).
-  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
-  iframe.setAttribute('allowfullscreen', '');
+  // don't use them; required for MEGA's fullscreen / picture-in-picture). A
+  // handler can narrow or widen this via embed_allow / embed_allowfullscreen
+  // (see src/song-handlers.yaml), surfaced here as data-allow /
+  // data-allow-fullscreen on the button; absent, this global default applies.
+  const allow = btn.dataset.allow != null
+    ? btn.dataset.allow
+    : 'autoplay; fullscreen; picture-in-picture; encrypted-media';
+  iframe.setAttribute('allow', allow);
+  const allowFullscreen = btn.dataset.allowFullscreen != null
+    ? btn.dataset.allowFullscreen === 'true'
+    : true;
+  if (allowFullscreen) iframe.setAttribute('allowfullscreen', '');
   iframe.title = btn.dataset.title || '';
   player.classList.remove('hidden'); player.appendChild(iframe);
 });

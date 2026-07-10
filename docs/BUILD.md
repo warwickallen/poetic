@@ -167,11 +167,15 @@ which point `poetic.js` creates the `<iframe>` inside the adjacent
 JavaScript — see [Player size](#player-size) below.
 
 Every created iframe is granted `allow="autoplay; fullscreen;
-picture-in-picture; encrypted-media"` and `allowfullscreen`. This is a single
-global default that is harmless for services that do not use those capabilities
-and is required for players such as MEGA to offer full-screen and
+picture-in-picture; encrypted-media"` and `allowfullscreen`. This is the
+global default, harmless for services that do not use those capabilities and
+required for players such as MEGA to offer full-screen and
 picture-in-picture. (Autoplay with sound is still blocked cross-origin by the
-browser, so playback always starts from the visitor's click.)
+browser, so playback always starts from the visitor's click.) A handler can
+override either via `embed_allow` / `embed_allowfullscreen` (see [Custom song
+handlers](#custom-song-handlers) below); this is surfaced on the button as
+`data-allow` / `data-allow-fullscreen`, which `poetic.js` reads in place of
+the global default when present.
 
 Set the Audiomack artist referenced by the builtin `audiomack` handler's URL
 template in `.poetic-config.yaml`:
@@ -200,6 +204,9 @@ A handler definition may set:
   no third-party request happens until the visitor clicks the button
 - player-size keys — `embed_height`, `embed_aspect_ratio`, `default_media`, and
   `media_sizes` (see [Player size](#player-size) below)
+- `embed_allow` / `embed_allowfullscreen` — overrides the lazy-loaded iframe's
+  `allow` / `allowfullscreen` attributes for this handler only (see [Shared
+  song-embed loader](#shared-song-embed-loader-publicpoeticjs) above)
 - `value_patterns` — infers a full value from a partial or pasted URL (see
   [Value patterns](#value-patterns) below)
 
@@ -327,6 +334,31 @@ At render time the resolved size is emitted as a CSS custom property on the
 class). `poetic.css` consumes those, falling back to `252px` when a handler
 declares no size. The resolved media type is also exposed as `data-embed-media`
 and a `song-embed--<service>--<media>` class for per-media styling.
+
+#### Embed permissions
+
+An embed handler may override the iframe `allow` / `allowfullscreen`
+attributes that `poetic.js` otherwise applies by default (see [Shared
+song-embed loader](#shared-song-embed-loader-publicpoeticjs) above):
+
+- `embed_allow` — a full `allow` attribute value, e.g. `"autoplay;
+  encrypted-media"`; an empty string grants no capabilities at all
+- `embed_allowfullscreen` — `false` suppresses the `allowfullscreen`
+  attribute for this handler's embeds; `true` is the same as leaving it unset
+
+```yaml
+song_handlers:
+  youtube:
+    embed_url: "https://www.youtube.com/embed/{value}"
+    button_label: "▶ Load YouTube"
+    embed_allow: "autoplay; encrypted-media; picture-in-picture"
+    embed_allowfullscreen: true
+```
+
+Leaving both unset (the case for every builtin handler) applies the global
+default. At render time, either key is exposed on the embed button as
+`data-allow` / `data-allow-fullscreen`, which `poetic.js` reads in place of
+the default when present.
 
 #### Overriding builtin handlers
 
