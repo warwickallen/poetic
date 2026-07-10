@@ -24,8 +24,11 @@
 " depend on the installed Vim. This fixture is a regression test for poem.vim's
 " OWN groups, so every builtin markdown* group is folded into poemAnalysis (the
 " group poem.vim gives the surrounding prose); adjacent runs then merge and the
-" dump becomes independent of the installed Vim's markdown syntax. The trade-off
-" is recorded in TECH-DEBT.md (TD26071003).
+" dump becomes independent of the installed Vim's markdown syntax. Because that
+" folding would let a broken `contains=@poemMarkdown` wiring pass unnoticed here,
+" test/vim-syntax.test.js also runs a separate, version-tolerant smoke check
+" (test/fixtures/dump-syntax-groups.vim) asserting that at least one raw,
+" unfolded markdown* group appears somewhere in the analysis section.
 
 function! s:GroupAt(lnum, col) abort
   let l:name = synIDattr(synID(a:lnum, a:col, 0), 'name')
