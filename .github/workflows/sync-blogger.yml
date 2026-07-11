@@ -63,7 +63,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.precheck.outputs.skip == 'false'
-        run: npm install
+        run: npm ci
 
       - name: Build poems
         if: steps.precheck.outputs.skip == 'false'

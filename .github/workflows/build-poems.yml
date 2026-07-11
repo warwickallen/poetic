@@ -65,7 +65,7 @@ jobs:
           node-version: "22"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       # Ensure a full vim (with +syntax) is present so test/vim-syntax.test.js
       # actually runs instead of self-skipping.
