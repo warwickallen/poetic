@@ -9,6 +9,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`poem-syntax.ebnf`'s preamble grammar now derives comment blocks.** The
+  `preamble_item` production references `comment_block`, and the "comment
+  blocks can appear anywhere" allowance is now backed by a documented lexical
+  pre-pass rule instead of prose alone — matching `docs/POEM-SYNTAX.md` §0 and
+  the parser's existing behaviour. No parsing behaviour changes.
+
 ## [6.0.0] — 2026-07-12
 
 ### Added

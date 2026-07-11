@@ -43,9 +43,15 @@ poem_file = [ preamble ],
                               blank_lines,
                               [ ignored_content ] ] ] ] ] ] ] ] ] ] ;
 
-(* Note: Before poem_file is parsed into sections, a lexical pre-pass folds
+(* Note: Before poem_file is parsed into sections, an earlier lexical pre-pass
+   removes every comment_block (see COMMENT BLOCKS below) from the raw file
+   content - comment_block can be written anywhere in the source text (see
+   semantic constraint 13) and so never reaches the productions below at all,
+   except where a production references comment_block explicitly (e.g.
+   preamble_item) to stay consistent with docs/POEM-SYNTAX.md's prose about
+   what that section may contain. A second, later pre-pass folds
    trailing-backslash line continuations into logical lines (see semantic
-   constraint 38). <<<...>>> block interiors are exempt from this pre-pass. *)
+   constraint 38); <<<...>>> block interiors are exempt from that pre-pass. *)
 
 (* ============================================================================
    PREAMBLE SECTION
@@ -57,8 +63,13 @@ preamble = preamble_item, { preamble_item } ;
    METADATA SECTION and semantic constraint 40 below); the preamble_item
    alternative is the ONLY place other than metadata_line that directive_line
    is referenced. Scanning for preamble directives stops at the first line
-   that is neither blank nor a directive_line - that line begins the header. *)
-preamble_item = blank_line | variable_definition | directive_line ;
+   that is neither blank nor a directive_line, nor part of a comment_block
+   (comment blocks are already gone by the time preamble scanning runs - see
+   the pre-pass note above) - that line begins the header. comment_block is
+   listed here because a comment_block is valid to write in the preamble (see
+   docs/POEM-SYNTAX.md section 0), even though the pre-pass strips it before
+   this production is derived. *)
+preamble_item = blank_line | variable_definition | directive_line | comment_block ;
 
 (* ============================================================================
    HEADER SECTION
@@ -403,8 +414,10 @@ comment_end = "#>>", { ? any character except newline ? }, newline ;
 
 comment_line = { ? any character except newline ? }, newline ;
 
-(* Note: Comment blocks can appear anywhere in the file and are completely
-   ignored during parsing. They do not contribute to the output. *)
+(* Note: comment_block can appear anywhere in the file (see the lexical
+   pre-pass note under TOP-LEVEL STRUCTURE, semantic constraint 13, and
+   preamble_item above) and is completely removed before poem_file is
+   derived. It does not contribute to the output. *)
 
 (* ============================================================================
    VARIABLES
@@ -683,7 +696,9 @@ leading_whitespace = ( " " | tab ), { " " | tab } ;
        (`/.class{}`) is valid and produces `<span class="class"></span>`
 
    13. Comment blocks (<<# ... #>>) can appear anywhere and are completely
-       removed during parsing
+       removed during parsing - formalised as the comment_block-removal
+       lexical pre-pass described under TOP-LEVEL STRUCTURE and referenced
+       from preamble_item and comment_block above
 
    14. The author line is optional; if omitted, defaults to the value of the ${author} variable
 
