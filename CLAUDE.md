@@ -67,12 +67,23 @@ Line one of stanza two
 
 Full spec: `docs/POEM-SYNTAX.md` and `poem-syntax.ebnf`.
 
+## Branch workflow
+
+`main` is protected: it does not accept direct commits or pushes, from anyone
+or anything, including maintainers and AI agents. Every change goes through a
+pull request, and the repo only allows squash merging — so a pull request's
+title becomes the single commit that lands on `main`. Write that title in
+Conventional Commits format (see "Commit messages" below); the individual
+commits on the branch are discarded when squashed, so only the title needs to
+conform.
+
 ## Release process
 
-`package.json`'s `version` field is the single source of truth. To release, bump it in a commit
-to `main` (conventionally `chore: release vX.Y.Z`); `.github/workflows/release.yml` tags that
-commit and publishes the GitHub release automatically, so the tag can't drift out of sync with
-`package.json`. Consumer repos can pin to a tag via `.poetic-version`.
+`package.json`'s `version` field is the single source of truth. To release, open a pull
+request that bumps it (titled `chore: release vX.Y.Z`) and squash-merge it into `main`;
+`.github/workflows/release.yml` tags that commit and publishes the GitHub release
+automatically, so the tag can't drift out of sync with `package.json`. Consumer repos can
+pin to a tag via `.poetic-version`.
 
 ## Exemplar config
 
@@ -103,7 +114,10 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/en
 (`<type>[(scope)][!]: <description>`, e.g. `fix(build-poems): resolve output path`). See the
 "Commit messages" section in `README.md` for the full type list. A `commit-msg` hook
 (`.githooks/commit-msg`) enforces this once a contributor runs
-`git config core.hooksPath .githooks`.
+`git config core.hooksPath .githooks`. Because `main` only accepts squash merges (see
+"Branch workflow" above), the pull request title is what actually becomes the commit on
+`main` — CI (`.github/workflows/commit-format.yml`) checks both the PR title and every
+commit on the branch.
 
 ## Tech debt
 

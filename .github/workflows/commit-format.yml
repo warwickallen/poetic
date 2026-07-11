@@ -9,11 +9,19 @@ name: Commit message format
 # deliberately `pull_request` (not `pull_request_target`), so a fork PR never
 # runs with write-scoped secrets.
 #
+# main only accepts squash merges, so the PR title (not any individual
+# branch commit) becomes the commit that actually lands on main — GitHub
+# defaults the squash commit subject to the PR title. This job checks the PR
+# title for that reason, and still checks every branch commit too, since
+# clean intermediate commits make the PR easier to review even though they
+# are discarded on squash.
+#
 # Both this job and the local hook call .githooks/check-commit-format.sh, so
 # the Conventional Commits pattern itself lives in exactly one place.
 
 on:
   pull_request:
+    types: [opened, edited, reopened, synchronize]
 
 permissions:
   contents: read
@@ -26,6 +34,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - name: Validate PR title against Conventional Commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: bash .githooks/check-commit-format.sh "$PR_TITLE"
 
       - name: Validate commit messages against Conventional Commits
         env:

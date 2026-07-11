@@ -132,6 +132,15 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   consumers: Conventional Commits is this repo's own convention (see
   the "Commit messages" section of `README.md`), not one imposed on poem-
   collection repos. Resolves TD26071108.
+- **`main` is now a protected, squash-merge-only branch.** The GitHub repo
+  settings disallow direct commits/pushes to `main` and only allow squash
+  merging, so every change — including releases — goes through a pull
+  request. A squash merge folds the branch onto a single commit whose
+  subject defaults to the PR title, not any individual branch commit, so
+  `.github/workflows/commit-format.yml` now also validates the PR title
+  against Conventional Commits (it previously only checked each branch
+  commit). `CLAUDE.md` and `README.md` document the new branch workflow and
+  the pull-request-based release process.
 
 ### Changed
 

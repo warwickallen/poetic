@@ -225,7 +225,7 @@ Files beginning with `_` (e.g. `_example.poem`, `_shared.yaml`) are excluded fro
 
 Poetic releases are numbered `vMAJOR.MINOR.PATCH` (for example, `v1.2.0`). Each release is tagged on the `main` branch and listed under [Releases](https://github.com/warwickallen/poetic/releases) on GitHub.
 
-`package.json`'s `version` field is the single source of truth: releasing means bumping that field in a commit to `main` (conventionally `chore: release vX.Y.Z`). The [release workflow](.github/workflows/release.yml) then tags that commit and publishes the GitHub release automatically, so the tag can never drift out of sync with `package.json`.
+`package.json`'s `version` field is the single source of truth: releasing means opening a pull request that bumps that field (titled `chore: release vX.Y.Z`) and squash-merging it into `main`. The [release workflow](.github/workflows/release.yml) then tags that commit and publishes the GitHub release automatically, so the tag can never drift out of sync with `package.json`.
 
 ### Manual sync
 
@@ -304,6 +304,8 @@ To switch channels, edit `.poetic-version` and change the `channel` line.
 
 If you improve a framework file (a tool, template, editor integration, or doc), please open a pull request against [warwickallen/poetic](https://github.com/warwickallen/poetic). Personal poems and your `README.md` stay in your own repo.
 
+`main` is a protected branch: it does not accept direct commits or pushes, so all changes — including from maintainers — go through a pull request. The repo only allows squash merging, so a merged PR always becomes a single commit on `main`.
+
 ### Commit messages
 
 This repo follows [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
@@ -320,6 +322,8 @@ feat(poem-to-yaml): support multi-line titles
 fix(build-poems): resolve output path relative to repo root
 docs: clarify sync-framework usage
 ```
+
+Because `main` only accepts squash merges, GitHub uses your **pull request title** as the squash commit's subject by default — that title is what actually lands in `main`'s history, so it must follow this format even if individual commits on your branch don't. CI checks both the PR title and every commit on the branch.
 
 Enable the commit-message check once per clone:
 
