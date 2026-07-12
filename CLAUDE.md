@@ -95,6 +95,15 @@ owner reviews there and requests changes if needed. This does not extend to acti
 itself (direct commits/pushes are rejected by the branch protection anyway) or to
 force-pushing/merging, which still require explicit instruction.
 
+Keep feature branches short-lived and narrowly scoped. Prefer breaking a large piece of
+work into a series of small pull requests, each a safe, self-contained, independently
+reviewable and mergeable unit, over accumulating many changes on one long-running branch.
+As soon as a branch reaches such a unit of work — coherent on its own, with CI passing —
+open it (or mark an existing draft) as "Ready for review" rather than holding it back to
+bundle in more. Smaller PRs review faster, land sooner, and keep branches close to `main`,
+which minimises the divergence and conflicts that long-running branches invite. Split off
+follow-on work into its own branch and PR.
+
 In this workspace, a local `post-checkout` Git hook in `.githooks/` refreshes the local
 `main` branch from `origin/main` after switching to `main`, helping keep the branch aligned
 with GitHub while working locally.
