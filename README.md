@@ -5,7 +5,10 @@ Write poems in a concise `.poem` format, build them into HTML,
 and optionally publish to GitHub Pages.
 
 <p align="center">
-  <img src="public/2026-07-12%2018_55_55-Poetic-Poems_poetic_%20A%20plain-text%20poem%20authoring%20framework.png" alt="Split screenshot: the plain-text .poem source for &quot;A Poem Kept&quot; on GitHub (left) next to its built HTML page rendered by the local Poetic dev server (right), showing the same poem as typed source and as styled output.">
+  <img
+    src="public/2026-07-12%2018_55_55-Poetic-Poems_poetic_%20A%20plain-text%20poem%20authoring%20framework.png"
+    alt="Split screenshot: the plain-text .poem source for &quot;A Poem Kept&quot; on GitHub (left) next to its built HTML page (right), showing the same poem as styled output."
+  >
 </p>
 
 <details>
