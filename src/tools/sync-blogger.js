@@ -326,6 +326,22 @@ function extractContent(fragmentHtml, mode) {
 // ── Network helpers ───────────────────────────────────────────────────────────
 
 /**
+ * A non-2xx response from the Blogger or Google OAuth API.
+ *
+ * Carries the operation and status as fields so `explainBloggerFailure` can
+ * turn them into advice, rather than having to re-parse the message text.
+ */
+class BloggerApiError extends Error {
+  constructor(operation, status, body) {
+    super(`${operation}: HTTP ${status} — ${body}`);
+    this.name = 'BloggerApiError';
+    this.operation = operation;
+    this.status = status;
+    this.body = body;
+  }
+}
+
+/**
  * Throw a descriptive error for a non-2xx API response.
  *
  * @param {Response} response
@@ -334,7 +350,7 @@ function extractContent(fragmentHtml, mode) {
 async function assertOk(response, context) {
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(`${context}: HTTP ${response.status} — ${text}`);
+    throw new BloggerApiError(context, response.status, text);
   }
 }
 
@@ -373,6 +389,36 @@ async function getAccessToken({ clientId, clientSecret, refreshToken }) {
   await assertOk(response, 'getAccessToken');
   const data = await response.json();
   return data.access_token;
+}
+
+/**
+ * Ask Blogger which blogs the authorised account may administer.
+ *
+ * Used only to explain a failure, so it never throws: a diagnosis that itself
+ * blows up would replace the real error with a worse one.
+ *
+ * A 403 here is meaningful rather than incidental. `users/self/blogs` asks
+ * nothing about a specific blog — only "who am I and what do I own" — so a
+ * refusal means Blogger does not recognise the account behind the token as a
+ * Blogger user at all, which is what a Google account with Blogger disabled
+ * (the default for Workspace domains) looks like from here.
+ *
+ * @param {string} token - OAuth2 access token
+ * @returns {Promise<{ recognised: boolean, blogs: Array<{id: string, name: string, url: string}> }>}
+ */
+async function listAccessibleBlogs(token) {
+  try {
+    const response = await fetch(`${BLOGGER_API}/users/self/blogs`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.status === 403) return { recognised: false, blogs: [] };
+    if (!response.ok) return { recognised: true, blogs: [] };
+    const data = await response.json();
+    const blogs = (data.items || []).map(b => ({ id: String(b.id), name: b.name, url: b.url }));
+    return { recognised: true, blogs };
+  } catch {
+    return { recognised: true, blogs: [] };
+  }
 }
 
 /**
@@ -484,16 +530,204 @@ async function deletePost(blogId, token, postId) {
   await assertOk(response, 'deletePost');
 }
 
+// ── Failure diagnosis ─────────────────────────────────────────────────────────
+
+// Both places the credentials live. Updating one and not the other is the
+// commonest way for local runs and the workflow to disagree, so every piece of
+// advice that ends in "re-mint" has to name both.
+const CREDENTIAL_HOMES =
+  'Then update the credentials in BOTH places that hold them:\n' +
+  '  - .blogger-credentials.json  (local runs)\n' +
+  '  - the BLOGGER_CLIENT_ID / BLOGGER_CLIENT_SECRET / BLOGGER_REFRESH_TOKEN\n' +
+  '    GitHub Actions secrets  (the Sync to Blogger workflow)\n' +
+  'Updating only one leaves the other failing exactly as it does now.';
+
+const SEE_DOCS = 'Full troubleshooting: docs/BLOGGER.md → Troubleshooting.';
+
+/**
+ * Turn a Blogger API failure into advice a publisher can act on.
+ *
+ * Google's own errors are accurate but anonymous: a 403 says "The caller does
+ * not have permission" without saying which caller, which permission, or what
+ * to do about it. Every failure below has one likely cause and one concrete
+ * fix, and saying so here is the difference between a two-minute correction
+ * and an afternoon of guesswork.
+ *
+ * Pure: `access` is passed in rather than fetched, so this stays testable.
+ *
+ * @param {object}      failure
+ * @param {string}      failure.operation - the function that failed, e.g. 'listAllPosts'
+ * @param {number}      failure.status    - HTTP status
+ * @param {string}      [failure.body]    - raw response body
+ * @param {string}      [failure.blogId]  - configured blogger.blog_id
+ * @param {?{ recognised: boolean, blogs: Array<{id: string, name: string, url: string}> }} [failure.access]
+ *   - result of listAccessibleBlogs(), or null if it could not be determined
+ * @returns {?string} advice to print beneath the raw error, or null if we have none
+ */
+function explainBloggerFailure({ operation, status, body = '', blogId, access = null }) {
+  if (operation === 'getAccessToken') {
+    if (body.includes('invalid_grant')) {
+      return [
+        'The stored refresh token is no longer valid. The token itself is the',
+        'problem — the blog and the config are fine.',
+        '',
+        'Most likely one of:',
+        '  - The OAuth consent screen is still in "Testing" status, which expires',
+        '    every refresh token after 7 days. Publishing the app stops that.',
+        '  - The token was revoked, or a later mint superseded it (minting a new',
+        '    token invalidates the previous one for the same client).',
+        '  - The client ID/secret are from a different OAuth client than the one',
+        '    that issued the token. All three values must come from one mint.',
+        '',
+        'To fix, re-mint it:  npm run blogger:auth',
+        CREDENTIAL_HOMES,
+        '',
+        SEE_DOCS,
+      ].join('\n');
+    }
+    if (body.includes('invalid_client')) {
+      return [
+        'Google rejected the client ID/secret pair. Check BLOGGER_CLIENT_ID and',
+        'BLOGGER_CLIENT_SECRET against the OAuth client in the Google Cloud',
+        'Console (APIs & Services → Credentials), and note that a deleted client',
+        'fails this way too.',
+        '',
+        SEE_DOCS,
+      ].join('\n');
+    }
+    return null;
+  }
+
+  if (status === 403) {
+    const lines = [];
+    if (access && !access.recognised) {
+      lines.push(
+        'The Google account you authorised cannot manage this blog.',
+        '',
+        'Blogger accepted the token, so the credentials and the scope are fine.',
+        'But it refused a request that depends on who you are, and it does not',
+        'recognise the account as a Blogger user at all.',
+        '',
+        'The usual cause is completing the consent screen as the wrong Google',
+        'account — easy to do, since the browser offers whichever account it is',
+        'already signed in to.',
+        '',
+        'A Google Workspace account (you@your-company.com) also fails exactly',
+        'this way: Workspace domains have Blogger switched off by default, and an',
+        'account without Blogger is refused even when it has been added as an',
+        'author on the blog. Either turn Blogger on for the domain in the Admin',
+        'console, or authorise as the personal account that owns the blog.'
+      );
+    } else if (access && access.blogs.length === 0) {
+      lines.push(
+        'The Google account you authorised does not administer any blogs, so it',
+        'is not the account that owns this one. You most likely completed the',
+        'consent screen as the wrong Google account.'
+      );
+    } else if (access && !access.blogs.some(b => b.id === String(blogId))) {
+      lines.push(
+        `The Google account you authorised cannot manage blog ${blogId}.`,
+        '',
+        'It administers these blogs instead:',
+        ...access.blogs.map(b => `  ${b.id}  ${b.name}  <${b.url}>`),
+        '',
+        'So either blogger.blog_id in .poetic-config.yaml points at the wrong',
+        'blog — set it to one of the IDs above — or you authorised as the wrong',
+        'Google account.'
+      );
+    } else if (access) {
+      lines.push(
+        `The authorised account lists blog ${blogId} among its blogs, yet Blogger`,
+        'refused this operation. Author-level access is the likely reason: the',
+        'sync needs admin rights to read drafts and to publish. Check the account',
+        "under the blog's Settings → Permissions in the Blogger dashboard."
+      );
+    } else {
+      lines.push(
+        'Blogger refused an operation that depends on which account authorised',
+        'the sync. The usual cause is that the account is not an admin of this',
+        'blog — often because the consent screen was completed as the wrong',
+        'Google account.'
+      );
+    }
+    lines.push(
+      '',
+      'To fix, check which account sees the blog at https://www.blogger.com/,',
+      'then re-mint as that account:  npm run blogger:auth',
+      '(the helper shows an account chooser and then lists what that account can',
+      'reach, so you can confirm before you save anything)',
+      CREDENTIAL_HOMES,
+      '',
+      SEE_DOCS
+    );
+    return lines.join('\n');
+  }
+
+  if (status === 404) {
+    return [
+      `Blogger has no blog with ID ${blogId} (blogger.blog_id in`,
+      '.poetic-config.yaml).',
+      '',
+      'The ID is the number in the Blogger dashboard URL:',
+      '  https://www.blogger.com/blog/posts/BLOG_ID',
+      '',
+      'Quote it as a string in YAML. Unquoted it is parsed as a number, exceeds',
+      "JavaScript's safe integer range, and silently loses precision.",
+      '',
+      SEE_DOCS,
+    ].join('\n');
+  }
+
+  if (status === 401) {
+    return [
+      'Blogger rejected the access token. It may have expired mid-run, or the',
+      'authorisation was revoked while the sync was in flight. Re-running the',
+      'sync mints a fresh token; if it fails again, re-mint the refresh token:',
+      '  npm run blogger:auth',
+      '',
+      SEE_DOCS,
+    ].join('\n');
+  }
+
+  return null;
+}
+
+/**
+ * Explain a failure, probing Blogger for the account's access when that would
+ * sharpen the diagnosis (a 403 is about identity, so knowing which blogs the
+ * account can reach turns "no permission" into "wrong account").
+ *
+ * @param {Error}   err
+ * @param {object}  context
+ * @param {string}  [context.blogId]
+ * @param {string}  [context.token] - access token, if one was obtained
+ * @returns {Promise<?string>}
+ */
+async function diagnoseBloggerFailure(err, { blogId, token } = {}) {
+  if (!(err instanceof BloggerApiError)) return null;
+  const access = err.status === 403 && token ? await listAccessibleBlogs(token) : null;
+  return explainBloggerFailure({
+    operation: err.operation,
+    status: err.status,
+    body: err.body,
+    blogId,
+    access,
+  });
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 /**
  * Main entry point: sync poems to Blogger.
  */
 async function main() {
+  // Declared out here so the catch can hand them to the diagnosis.
+  let opts = null;
+  let token = null;
   try {
     const args = parseArgs(process.argv.slice(2));
     const rawConfig = readPoeticConfig(REPO_ROOT);
-    const opts = resolveConfig(rawConfig, process.env);
+    opts = resolveConfig(rawConfig, process.env);
 
     if (!opts.enabled) {
       console.log('Blogger sync disabled (set blogger: { sync: true } in .poetic-config.yaml).');
@@ -517,7 +751,7 @@ async function main() {
       return;
     }
 
-    const token = await getAccessToken(opts);
+    token = await getAccessToken(opts);
     const posts = await listAllPosts(opts.blogId, token);
     const bySlug = mapBySlug(posts);
 
@@ -646,6 +880,11 @@ async function main() {
     );
   } catch (err) {
     console.error(`Blogger sync error: ${err.message}`);
+    const advice = await diagnoseBloggerFailure(err, {
+      blogId: opts && opts.blogId,
+      token,
+    });
+    if (advice) console.error(`\n${advice}`);
     process.exitCode = 1;
   }
 }
@@ -666,7 +905,11 @@ module.exports = {
   postNeedsUpdate,
   selectRemoved,
   extractContent,
+  explainBloggerFailure,
   // Network helpers (exported for advanced use / mocking)
+  BloggerApiError,
+  diagnoseBloggerFailure,
+  listAccessibleBlogs,
   getAccessToken,
   listAllPosts,
   createPost,

@@ -5,7 +5,7 @@
  *
  * Covers: parseArgs, resolveConfig, extractSlug, mapBySlug,
  * bloggerAcceptableLabels, composePost, normalizeHtml, postNeedsUpdate,
- * selectRemoved, extractContent.
+ * selectRemoved, extractContent, explainBloggerFailure.
  */
 
 const { test } = require('node:test');
@@ -25,6 +25,7 @@ const {
   postNeedsUpdate,
   selectRemoved,
   extractContent,
+  explainBloggerFailure,
 } = require('../src/tools/sync-blogger');
 
 // ── parseArgs ─────────────────────────────────────────────────────────────────
@@ -588,4 +589,143 @@ test('extractContent: unknown mode returns HTML unchanged (treated as full)', ()
   // The spec says mode='full' returns unchanged; any non-'poem' is effectively 'full'
   const result = extractContent(FULL_FRAGMENT, 'full');
   assert.strictEqual(result, FULL_FRAGMENT);
+});
+
+// ── explainBloggerFailure ─────────────────────────────────────────────────────
+
+const BLOG_ID = '7781143180070523245';
+
+test('explainBloggerFailure: 403 with an unrecognised account blames the account', () => {
+  const advice = explainBloggerFailure({
+    operation: 'listAllPosts',
+    status: 403,
+    body: 'The caller does not have permission',
+    blogId: BLOG_ID,
+    access: { recognised: false, blogs: [] },
+  });
+  assert.match(advice, /cannot manage this blog/);
+  // \s+ rather than a literal space: the guidance is hard-wrapped for a terminal.
+  assert.match(advice, /wrong Google\s+account/);
+  assert.match(advice, /Workspace/);
+  assert.match(advice, /npm run blogger:auth/);
+});
+
+test('explainBloggerFailure: 403 lists the blogs the account can reach instead', () => {
+  const advice = explainBloggerFailure({
+    operation: 'listAllPosts',
+    status: 403,
+    body: '',
+    blogId: BLOG_ID,
+    access: {
+      recognised: true,
+      blogs: [{ id: '999', name: 'Other Blog', url: 'https://other.blogspot.com/' }],
+    },
+  });
+  assert.match(advice, new RegExp(`cannot manage blog ${BLOG_ID}`));
+  assert.match(advice, /999 {2}Other Blog {2}<https:\/\/other\.blogspot\.com\/>/);
+  assert.match(advice, /blogger\.blog_id/);
+});
+
+test('explainBloggerFailure: 403 for a blog the account does own suspects author-only rights', () => {
+  const advice = explainBloggerFailure({
+    operation: 'listAllPosts',
+    status: 403,
+    body: '',
+    blogId: BLOG_ID,
+    access: {
+      recognised: true,
+      blogs: [{ id: BLOG_ID, name: 'Mine', url: 'https://mine.blogspot.com/' }],
+    },
+  });
+  assert.match(advice, /admin rights/);
+  assert.match(advice, /Permissions/);
+});
+
+test('explainBloggerFailure: 403 with an account that owns nothing blames the account', () => {
+  const advice = explainBloggerFailure({
+    operation: 'listAllPosts',
+    status: 403,
+    body: '',
+    blogId: BLOG_ID,
+    access: { recognised: true, blogs: [] },
+  });
+  assert.match(advice, /does not administer any blogs/);
+});
+
+test('explainBloggerFailure: 403 still advises when access could not be probed', () => {
+  const advice = explainBloggerFailure({
+    operation: 'listAllPosts',
+    status: 403,
+    body: '',
+    blogId: BLOG_ID,
+    access: null,
+  });
+  assert.match(advice, /not an admin of this/);
+  assert.match(advice, /npm run blogger:auth/);
+});
+
+test('explainBloggerFailure: every re-mint says to update both credential homes', () => {
+  for (const failure of [
+    { operation: 'getAccessToken', status: 400, body: '{"error":"invalid_grant"}' },
+    { operation: 'listAllPosts', status: 403, body: '', access: { recognised: false, blogs: [] } },
+  ]) {
+    const advice = explainBloggerFailure({ blogId: BLOG_ID, ...failure });
+    assert.match(advice, /\.blogger-credentials\.json/);
+    assert.match(advice, /GitHub Actions secrets/);
+  }
+});
+
+test('explainBloggerFailure: invalid_grant explains the 7-day Testing expiry', () => {
+  const advice = explainBloggerFailure({
+    operation: 'getAccessToken',
+    status: 400,
+    body: '{"error":"invalid_grant","error_description":"Token has been expired or revoked."}',
+    blogId: BLOG_ID,
+  });
+  assert.match(advice, /refresh token is no longer valid/);
+  assert.match(advice, /"Testing"/);
+  assert.match(advice, /7 days/);
+});
+
+test('explainBloggerFailure: invalid_client points at the OAuth client', () => {
+  const advice = explainBloggerFailure({
+    operation: 'getAccessToken',
+    status: 401,
+    body: '{"error":"invalid_client"}',
+    blogId: BLOG_ID,
+  });
+  assert.match(advice, /BLOGGER_CLIENT_ID/);
+  assert.match(advice, /Credentials/);
+});
+
+test('explainBloggerFailure: 404 blames blog_id and warns about quoting', () => {
+  const advice = explainBloggerFailure({
+    operation: 'listAllPosts',
+    status: 404,
+    body: '',
+    blogId: BLOG_ID,
+  });
+  assert.match(advice, new RegExp(`no blog with ID ${BLOG_ID}`));
+  assert.match(advice, /Quote it as a string/);
+});
+
+test('explainBloggerFailure: 401 suggests a retry before a re-mint', () => {
+  const advice = explainBloggerFailure({
+    operation: 'updatePost',
+    status: 401,
+    body: '',
+    blogId: BLOG_ID,
+  });
+  assert.match(advice, /rejected the access token/);
+});
+
+test('explainBloggerFailure: returns null when it has nothing useful to add', () => {
+  assert.strictEqual(
+    explainBloggerFailure({ operation: 'listAllPosts', status: 500, body: 'boom', blogId: BLOG_ID }),
+    null
+  );
+  assert.strictEqual(
+    explainBloggerFailure({ operation: 'getAccessToken', status: 503, body: 'unavailable' }),
+    null
+  );
 });
