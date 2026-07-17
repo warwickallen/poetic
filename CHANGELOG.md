@@ -40,6 +40,25 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   editor (dafaults to vi), and builds — a one-command alternative to copying
   `_example.poem` by hand for the common case of starting a poem from scratch.
 
+### Changed
+
+- **Blogger auth failures now say what to do about them.** Google's API
+  answers a permissions problem with a bare "The caller does not have
+  permission", naming neither the account nor the blog, so the commonest setup
+  mistake — authorising as a Google account that does not own the blog —
+  surfaced as an error with nothing to act on. `npm run sync:blogger` now
+  prints guidance beneath any failure it recognises: a 403 asks Blogger which
+  blogs the authorised account *can* reach and reports the mismatch, and
+  `invalid_grant`, `invalid_client`, and a 404 on the blog each get their
+  likely cause and fix. `npm run blogger:auth` now shows Google's account
+  chooser rather than silently using whichever account the browser is signed in
+  to, and lists the blogs the chosen account can manage — marking the one that
+  matches `blogger.blog_id` — before it offers to save anything, so a wrong
+  account is caught at authorisation instead of at the next sync.
+  `docs/BLOGGER.md` gains a Troubleshooting section covering these, the 7-day
+  refresh-token expiry that an unpublished OAuth consent screen causes, and the
+  two separate places credentials live.
+
 ### Fixed
 
 - **`renderPoem()`'s fragment now shows the poem's title.** `public/poetic.css`

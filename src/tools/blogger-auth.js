@@ -14,6 +14,8 @@
  *   3. Configure the OAuth consent screen:
  *        APIs & Services → OAuth consent screen → External
  *        Add your Google account as a test user (under "Test users").
+ *        Publish the app once you are done testing — "Testing" status expires
+ *        refresh tokens after 7 days.
  *   4. Create OAuth credentials:
  *        APIs & Services → Credentials → Create Credentials → OAuth client ID
  *        Application type: Desktop app
@@ -36,6 +38,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { URL, URLSearchParams } = require('url');
+const { readPoeticConfig } = require('./poetic-config');
 
 const BLOGGER_SCOPE = 'https://www.googleapis.com/auth/blogger';
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -135,6 +138,137 @@ async function lookupBlogId(blogUrl, accessToken) {
   return data;
 }
 
+// ── Blog access check ─────────────────────────────────────────────────────────
+
+/**
+ * List the blogs the freshly authorised account may administer.
+ *
+ * A 403 is a finding, not an error. `users/self/blogs` asks only "who am I and
+ * what do I own", so a refusal means Blogger does not recognise the account as
+ * a Blogger user at all — the signature of a Google account with Blogger
+ * disabled, which is the default for Workspace domains.
+ *
+ * @param {string} accessToken
+ * @returns {Promise<{ recognised: boolean, blogs: Array<{id: string, name: string, url: string}> }>}
+ */
+async function listMyBlogs(accessToken) {
+  const response = await fetch(`${BLOGGER_API}/users/self/blogs`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (response.status === 403) {
+    return { recognised: false, blogs: [] };
+  }
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Blog list failed: HTTP ${response.status} — ${text}`);
+  }
+  const data = await response.json();
+  const blogs = (data.items || []).map(b => ({
+    id: String(b.id),
+    name: b.name,
+    url: b.url,
+  }));
+  return { recognised: true, blogs };
+}
+
+/**
+ * Describe what the authorised account can reach, and whether that matches the
+ * blog this repo is configured to publish to.
+ *
+ * Checking here — while the person is still at the terminal and has not yet
+ * saved anything — is the whole point: the alternative is finding out at the
+ * next sync, from a 403 that names neither the account nor the blog.
+ *
+ * Pure, so the wording stays testable without a network.
+ *
+ * @param {{ recognised: boolean, blogs: Array<{id: string, name: string, url: string}> }} access
+ * @param {?string} configuredBlogId - blogger.blog_id from .poetic-config.yaml, if set
+ * @returns {{ ok: boolean, text: string }}
+ */
+function describeBlogAccess(access, configuredBlogId) {
+  if (!access.recognised) {
+    return {
+      ok: false,
+      text: [
+        'WARNING: Blogger does not recognise this account as a Blogger user.',
+        '',
+        'Syncing with these credentials will fail with "The caller does not have',
+        'permission". You are most likely signed in as the wrong Google account.',
+        '',
+        'If it is a Google Workspace account (you@your-company.com), that alone',
+        'explains it: Workspace domains have Blogger switched off by default, and',
+        'an account without Blogger is refused even when it has been added as an',
+        'author on the blog.',
+        '',
+        'Check which account sees your blog at https://www.blogger.com/, then run',
+        'this helper again and choose that account.',
+      ].join('\n'),
+    };
+  }
+
+  if (access.blogs.length === 0) {
+    return {
+      ok: false,
+      text: [
+        'WARNING: this account does not administer any blogs.',
+        '',
+        'Syncing with these credentials will fail. Check which account sees your',
+        'blog at https://www.blogger.com/, then run this helper again and choose',
+        'that account.',
+      ].join('\n'),
+    };
+  }
+
+  const matches = configuredBlogId
+    ? access.blogs.some(b => b.id === String(configuredBlogId))
+    : false;
+
+  const list = access.blogs.map(b => {
+    const marker = configuredBlogId && b.id === String(configuredBlogId)
+      ? '  ← blogger.blog_id'
+      : '';
+    return `  ${b.id}  ${b.name}  <${b.url}>${marker}`;
+  });
+
+  if (!configuredBlogId) {
+    return {
+      ok: true,
+      text: [
+        'This account can manage these blogs:',
+        '',
+        ...list,
+        '',
+        'Copy the ID of the one you publish to into .poetic-config.yaml as',
+        'blogger.blog_id (quoted — unquoted it is parsed as a number and loses',
+        'precision).',
+      ].join('\n'),
+    };
+  }
+
+  if (!matches) {
+    return {
+      ok: false,
+      text: [
+        `WARNING: this account cannot manage blog ${configuredBlogId}, which is`,
+        'the blogger.blog_id set in .poetic-config.yaml.',
+        '',
+        'It can manage these instead:',
+        '',
+        ...list,
+        '',
+        'So either you are signed in as the wrong Google account, or blog_id is',
+        'wrong. Resolve that before saving these credentials — syncing as-is will',
+        'fail with "The caller does not have permission".',
+      ].join('\n'),
+    };
+  }
+
+  return {
+    ok: true,
+    text: ['This account can manage these blogs:', '', ...list].join('\n'),
+  };
+}
+
 // ── Loopback server ───────────────────────────────────────────────────────────
 
 function waitForCode(port, expectedState) {
@@ -209,8 +343,16 @@ Options:
 Prerequisites (Google Cloud Console):
   1. Enable the Blogger API v3 in your project.
   2. Configure OAuth consent screen as External and add yourself as a test user.
+     Publish the app when you are done testing: while it is in "Testing" status
+     Google expires every refresh token after 7 days, and the sync then fails.
   3. Create an OAuth 2.0 client ID (Desktop app type).
   4. Set BLOGGER_CLIENT_ID and BLOGGER_CLIENT_SECRET env vars (or enter them when prompted).
+
+At the consent screen, sign in as the Google account that owns the blog — the
+one that sees it at https://www.blogger.com/. Authorising as another account
+succeeds here and then fails at sync time with "The caller does not have
+permission". This helper lists the blogs the account can manage before you save
+anything, so you can check.
 
 After running:
   - Add BLOGGER_CLIENT_ID, BLOGGER_CLIENT_SECRET, BLOGGER_REFRESH_TOKEN as GitHub Actions secrets.
@@ -252,7 +394,11 @@ After running:
   consentUrl.searchParams.set('response_type', 'code');
   consentUrl.searchParams.set('scope', BLOGGER_SCOPE);
   consentUrl.searchParams.set('access_type', 'offline');
-  consentUrl.searchParams.set('prompt', 'consent');
+  // select_account forces the account chooser even when the browser has exactly
+  // one Google account signed in. Without it Google silently uses that account,
+  // which is how people authorise as the wrong one — a mistake that surfaces
+  // much later as an unexplained 403 from the sync.
+  consentUrl.searchParams.set('prompt', 'select_account consent');
   consentUrl.searchParams.set('state', state);
   consentUrl.searchParams.set('code_challenge', codeChallenge);
   consentUrl.searchParams.set('code_challenge_method', 'S256');
@@ -314,8 +460,36 @@ After running:
     }
   }
 
+  // Confirm the account can actually reach the blog, while the person is still
+  // here to do something about it. Best-effort: a check that cannot run is no
+  // reason to lose a token that has just been minted.
+  let accessOk = true;
+  try {
+    const access = await listMyBlogs(accessToken);
+    let configuredBlogId = null;
+    try {
+      const config = readPoeticConfig();
+      configuredBlogId = config.blogger && config.blogger.blog_id != null
+        ? String(config.blogger.blog_id)
+        : null;
+    } catch {
+      // No readable .poetic-config.yaml (e.g. run from outside a poem repo) —
+      // report what the account can reach without checking it against a blog_id.
+    }
+    const verdict = describeBlogAccess(access, configuredBlogId);
+    accessOk = verdict.ok;
+    console.log('\n─────────────────────────────────────────────────────────');
+    console.log(verdict.text);
+    console.log('─────────────────────────────────────────────────────────');
+  } catch (err) {
+    console.warn(`\nCould not check this account's blog access: ${err.message}`);
+  }
+
   // Offer to save credentials locally
-  const save = (await prompt(rl, '\nSave credentials to .blogger-credentials.json for local use? (y/N) ')).trim().toLowerCase();
+  const savePrompt = accessOk
+    ? '\nSave credentials to .blogger-credentials.json for local use? (y/N) '
+    : '\nSave these credentials anyway? (y/N) ';
+  const save = (await prompt(rl, savePrompt)).trim().toLowerCase();
   if (save === 'y' || save === 'yes') {
     const creds = {
       client_id: clientId,
@@ -357,6 +531,8 @@ module.exports = {
   waitForCode,
   exchangeCodeForTokens,
   lookupBlogId,
+  listMyBlogs,
+  describeBlogAccess,
   generateState,
   generatePkce,
 };
