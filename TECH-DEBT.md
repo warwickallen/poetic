@@ -111,13 +111,6 @@ it is always obvious where a new item's body belongs.
 
 <!-- Add new items directly below, as `### <id> <title>` sections. -->
 
-### TD26072102 docs/QUICKSTART-VIM.md references a non-existent vim/ root path
-
-The quickstart's install command and example-poem path predate the
-`vim/` → `editors/vim/` move every sibling doc already reflects, so its first
-documented command fails. Fix: update all path references to `editors/vim/` and
-`src/poems/poem/_example.poem`.
-
 ### TD26072103 Postscript "See more" toggle is not keyboard-operable
 
 `src/templates/_poem-content.pug`'s postscript preview uses a `display: none`
@@ -298,7 +291,7 @@ resolved one, but nothing was fixed, so the `Resolved` column stays blank; the
 | TD26071901 | All-poems template interpolates the poem title unescaped | resolved | 2026-07-19 | #63 |
 | TD26071902 | Index grid and all-poems listing don't render title inline markup | resolved | 2026-07-20 | #72 |
 | TD26072101 | docs/BUILD.md describes a superseded build and contradicts itself on two filenames | resolved | 2026-07-22 | 0972e62 |
-| TD26072102 | docs/QUICKSTART-VIM.md references a non-existent vim/ root path | in-progress | | |
+| TD26072102 | docs/QUICKSTART-VIM.md references a non-existent vim/ root path | resolved | 2026-07-22 | 5655c57 |
 | TD26072103 | Postscript "See more" toggle is not keyboard-operable | open | | |
 | TD26072104 | Governance docs don't state that review is currently self-review | open | | |
 | TD26072105 | Root-level RELEASE_NOTES_*.md files duplicate CHANGELOG.md | open | | |
