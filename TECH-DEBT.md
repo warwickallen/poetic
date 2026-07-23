@@ -135,16 +135,6 @@ in a different component. Fix: replace with a real `<button aria-expanded>`
 toggle, mirroring the existing analysis/song-embed controls in the same
 template.
 
-### TD26072106 serve-static.js and public/index.js's fixed XSS have no regression tests
-
-`src/tools/serve-static.js` has zero test coverage, including the
-`escapeHtml`/`encodeHref`/`generateDirectoryListing` helpers behind a fixed
-high-severity stored-XSS CodeQL alert (commit `3eb8bd9`), verified only
-manually in that PR. `public/index.js`'s DOM-XSS fix (`8e4d6ac`) is similarly
-untested. Fix: add `test/serve-static.test.js` and a DOM-based test for
-`renderPoems()`/`appendTitleHtml`, each asserting hostile input is safely
-escaped.
-
 ### TD26072107 package.json's engines.node floor (>=18) is past EOL
 
 Node 18 and Node 20 are both past end-of-life while CI already runs Node 22;
@@ -302,7 +292,7 @@ resolved one, but nothing was fixed, so the `Resolved` column stays blank; the
 | TD26072103 | Postscript "See more" toggle is not keyboard-operable | resolved | 2026-07-22 | #79 |
 | TD26072104 | Governance docs don't state that review is currently self-review | resolved | 2026-07-22 | #80 |
 | TD26072105 | Root-level RELEASE_NOTES_*.md files duplicate CHANGELOG.md | resolved | 2026-07-22 | #81 |
-| TD26072106 | serve-static.js and public/index.js's fixed XSS have no regression tests | in-progress | | |
+| TD26072106 | serve-static.js and public/index.js's fixed XSS have no regression tests | resolved | 2026-07-24 | #82 |
 | TD26072107 | package.json's engines.node floor (>=18) is past EOL | open | | |
 | TD26072108 | Several public/poetic.css text colours fail WCAG AA contrast | open | | |
 | TD26072109 | yaml-to-poem.js silently drops data the current YAML shape can hold | open | | |
