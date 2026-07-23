@@ -29,6 +29,14 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   race-safe lock between concurrent agents; `TECH-DEBT.md`'s "Claiming an
   item" workflow is rewritten accordingly, and the new scripts and skill are
   covered by `test/tech-debt-scripts.test.js`.
+- **Regression tests for the two previously-fixed XSS alerts.**
+  `test/serve-static.test.js` covers `escapeHtml`/`encodeHref`/
+  `generateDirectoryListing` (stored-XSS fix, `3eb8bd9`) with hostile
+  filenames and relative paths; `test/public-index.test.js` covers
+  `renderPoems`/`appendTitleHtml` (DOM-XSS fix, `8e4d6ac`) with a hostile
+  poem title and label, asserting the hostile string only ever reaches the
+  DOM as inert text. Both fixes were previously verified manually only.
+  Resolves TD26072106.
 
 ### Fixed
 
