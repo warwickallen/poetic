@@ -125,8 +125,10 @@ test('resolveConfig: valid removed values are accepted', () => {
 });
 
 test('resolveConfig: invalid removed falls back to "draft"', () => {
-  assert.strictEqual(resolveConfig({ blogger: { removed: 'archive' } }, {}, null).removed, 'draft');
-  assert.strictEqual(resolveConfig({ blogger: { removed: '' } }, {}, null).removed, 'draft');
+  withCapturedWarnings(() => {
+    assert.strictEqual(resolveConfig({ blogger: { removed: 'archive' } }, {}, null).removed, 'draft');
+    assert.strictEqual(resolveConfig({ blogger: { removed: '' } }, {}, null).removed, 'draft');
+  });
 });
 
 test('resolveConfig: valid content values are accepted', () => {
@@ -135,8 +137,10 @@ test('resolveConfig: valid content values are accepted', () => {
 });
 
 test('resolveConfig: invalid content falls back to "full"', () => {
-  assert.strictEqual(resolveConfig({ blogger: { content: 'text' } }, {}, null).content, 'full');
-  assert.strictEqual(resolveConfig({ blogger: { content: '' } }, {}, null).content, 'full');
+  withCapturedWarnings(() => {
+    assert.strictEqual(resolveConfig({ blogger: { content: 'text' } }, {}, null).content, 'full');
+    assert.strictEqual(resolveConfig({ blogger: { content: '' } }, {}, null).content, 'full');
+  });
 });
 
 test('resolveConfig: warns on an invalid blogger.removed value, naming it and the valid options', () => {
