@@ -76,6 +76,7 @@ class YamlToPoemConverter {
     this.writeAudio();
     this.writePostscript();
     this.writeAnalysis();
+    this.writeMetadata();
 
     return this.lines.join('\n');
   }
@@ -143,7 +144,7 @@ class YamlToPoemConverter {
 
       // Add version label if present
       if (version.label) {
-        this.addLine(`{{ ${version.label} }}`);
+        this.addLine(this.formatLabelLine('{{', '}}', version.label, version.params));
         this.addBlankLines();
       }
 
@@ -157,11 +158,15 @@ class YamlToPoemConverter {
 
         // Add segment label if present
         if (segment.label) {
-          this.addLine(`{${segment.label}}`);
+          this.addLine(this.formatLabelLine('{', '}', segment.label, segment.params));
         }
 
-        // Write segment lines
-        if (segment.lines) {
+        // Write segment content: `parts` (mixed WYSIWYG runs and embedded
+        // `<<< >>>` blocks) and `lines` (pure WYSIWYG) are mutually exclusive
+        // shapes -- poem-parser.js's parseSegment() only ever sets one.
+        if (segment.parts) {
+          this.writeSegmentParts(segment.parts);
+        } else if (segment.lines) {
           // Remove trailing newline from lines if present
           const lines = segment.lines.endsWith('\n')
             ? segment.lines.slice(0, -1)
@@ -190,20 +195,64 @@ class YamlToPoemConverter {
   }
 
   /**
+   * Write a segment's `parts` -- the ordered mix of WYSIWYG line runs and
+   * embedded `<<< >>>` blocks that parseSegment() produces when a segment
+   * contains at least one literal/markdown block. A `lines` part is written
+   * the same way as a plain `segment.lines` run; an `html` part is wrapped in
+   * a raw `<<< >>>` block so it re-parses back to the identical HTML string
+   * (renderBlock()'s raw passthrough only substitutes variables, and the
+   * written content has none, so this is a lossless round trip). Unlike the
+   * `lines` case, `html`'s own trailing newline (if any) is kept as-is rather
+   * than stripped: renderBlock() joins the block's inner lines with '\n' but
+   * adds no trailing newline of its own, so keeping (or omitting) it here is
+   * what reproduces the original string exactly on the next parse.
+   */
+  writeSegmentParts(parts) {
+    for (const part of parts) {
+      if (part.type === 'lines') {
+        const lines = part.lines.endsWith('\n') ? part.lines.slice(0, -1) : part.lines;
+        this.addLine(lines);
+      } else if (part.type === 'html') {
+        if (/^\s*(?:<<<|>>>)/m.test(part.html)) {
+          throw new Error(
+            `Unsupported segment part: html content contains a "<<<" or ">>>" block marker, ` +
+            `which cannot be represented as a raw literal block: ${JSON.stringify(part.html.slice(0, 80))}`
+          );
+        }
+        this.addLine('<<<');
+        this.addLine(part.html);
+        this.addLine('>>>');
+      } else {
+        throw new Error(`Unsupported segment part type: ${JSON.stringify(part.type)}`);
+      }
+    }
+  }
+
+  /**
    * Write audio section
    */
   writeAudio() {
     if (this.data.audio) {
       // Service names are data-driven (see song-handlers.js /
       // song-handlers.yaml) -- write back whatever the YAML has, in order,
-      // rather than a fixed Audiomack/Suno pair. A value of `true` becomes
-      // a bare line; a non-empty string value becomes "Service: value".
+      // rather than a fixed Audiomack/Suno pair. A bare `true` value becomes
+      // a bare line; a string value becomes "Service: value"; an object
+      // `{ value, media?, ratio?, height? }` (a source line that carried a
+      // trailing player-size parameter list) becomes "Service[: value]
+      // (media, ratio=..., height=...)".
       for (const [service, value] of Object.entries(this.data.audio)) {
         const displayName = service.charAt(0).toUpperCase() + service.slice(1);
         if (value === true) {
           this.addLine(displayName);
         } else if (typeof value === 'string' && value.trim() !== '') {
           this.addLine(`${displayName}: ${value}`);
+        } else if (value && typeof value === 'object') {
+          this.addLine(`${displayName}${this.formatAudioParams(service, value)}`);
+        } else {
+          throw new Error(
+            `Unsupported audio entry for "${service}": expected true, a non-empty string, ` +
+            `or a { value, media?, ratio?, height? } object, got ${JSON.stringify(value)}`
+          );
         }
       }
       this.addBlankLines();
@@ -212,6 +261,34 @@ class YamlToPoemConverter {
     // End of audio marker
     this.addLine('====');
     this.addBlankLines();
+  }
+
+  /**
+   * Format an object-form audio entry -- `{ value, media?, ratio?, height? }`
+   * -- as the trailing text of its service line: an optional ": value" plus
+   * the " (media, ratio=..., height=...)" parameter list matched by
+   * poem-parser.js's parseAudioParams(). Always includes the parens (even
+   * when empty) so an entry with an unrecognised/dropped parameter -- which
+   * parseAudioParams() still surfaces as `{ value }` because it saw *some*
+   * trailing "(...)" -- keeps its object shape on the next round trip too.
+   */
+  formatAudioParams(service, entry) {
+    const params = [];
+    if (entry.media) params.push(entry.media);
+    if (entry.ratio != null) params.push(`ratio=${entry.ratio}`);
+    if (entry.height != null) params.push(`height=${entry.height}`);
+    const paramStr = ` (${params.join(', ')})`;
+
+    if (entry.value === true) {
+      return paramStr;
+    }
+    if (typeof entry.value === 'string' && entry.value.trim() !== '') {
+      return `: ${entry.value}${paramStr}`;
+    }
+    throw new Error(
+      `Unsupported audio entry for "${service}": object "value" must be true or a non-empty ` +
+      `string, got ${JSON.stringify(entry.value)}`
+    );
   }
 
   /**
@@ -230,7 +307,7 @@ class YamlToPoemConverter {
         } else {
           // Add label if present
           if (note.label) {
-            this.addLine(`{${note.label}}`);
+            this.addLine(this.formatLabelLine('{', '}', note.label, note.params));
           }
 
           // Convert HTML content back to plain text
@@ -282,6 +359,100 @@ class YamlToPoemConverter {
       // End of file marker (optional, but include it)
       this.addLine('====');
     }
+  }
+
+  /**
+   * Write the Metadata section: directives (in source order, `%name
+   * key:value ...`), then labels (in source order, `#label`). The two are
+   * parsed into separate arrays by poem-parser.js's parseMetadata() -- it
+   * does not track how directive and label lines were interleaved in the
+   * source -- so writing them in two grouped runs round-trips the same
+   * `directives`/`labels` arrays without loss. Writes nothing when both are
+   * absent, matching parseMetadata() leaving both keys off `result` for an
+   * empty (or absent) Metadata section.
+   */
+  writeMetadata() {
+    if (!this.data.directives && !this.data.labels) {
+      return;
+    }
+
+    if (this.data.directives) {
+      for (const directive of this.data.directives) {
+        this.addLine(this.formatDirectiveLine(directive));
+      }
+    }
+
+    if (this.data.labels) {
+      for (const label of this.data.labels) {
+        this.addLine(`#${this.validateMetadataToken(label, /^[^\s&<>\\#]+$/, 'label')}`);
+      }
+    }
+  }
+
+  /**
+   * Format a `{ name, attributes? }` directive as a `%name key:value ...`
+   * line, matching the character classes parseDirectiveLine() accepts (it
+   * has no quoting mechanism, so any value outside `[\w.-]` cannot round-trip
+   * and errors here instead of silently corrupting on the next parse).
+   */
+  formatDirectiveLine(directive) {
+    const name = this.validateMetadataToken(directive.name, /^[\w.-]+$/, 'directive name');
+    if (!directive.attributes) {
+      return `%${name}`;
+    }
+    const attrs = Object.entries(directive.attributes)
+      .map(([key, value]) => {
+        const validKey = this.validateMetadataToken(key, /^[\w.]+$/, 'directive attribute key');
+        const validValue = this.validateMetadataToken(value, /^[\w.-]+$/, 'directive attribute value');
+        return `${validKey}:${validValue}`;
+      })
+      .join(' ');
+    return `%${name} ${attrs}`;
+  }
+
+  /**
+   * Validate a Metadata-section token against the character class its
+   * corresponding poem-parser.js matcher accepts, throwing a clear error
+   * (rather than silently emitting a line that would parse back differently)
+   * when the YAML data holds something that syntax cannot represent.
+   */
+  validateMetadataToken(value, pattern, description) {
+    const str = String(value);
+    if (!pattern.test(str)) {
+      throw new Error(
+        `Unsupported Metadata ${description}: ${JSON.stringify(str)} does not match ${pattern} ` +
+        `and cannot be written as valid .poem syntax`
+      );
+    }
+    return str;
+  }
+
+  /**
+   * Format a version/segment/postscript label line, appending its optional
+   * parameter list. `open`/`close` are '{{'/'}}' for a version label or
+   * '{'/'}' for a segment/postscript label, matching the spacing each
+   * already uses (`{{ Label }}` vs `{Label}`).
+   */
+  formatLabelLine(open, close, label, params) {
+    const inner = open === '{{' ? ` ${label} ` : label;
+    const base = `${open}${inner}${close}`;
+    return params ? base + this.formatParamList(params) : base;
+  }
+
+  /**
+   * Format a `{ key: value, ... }` params object as a `(key=value, ...)`
+   * parameter list. Every value is double-quoted with `\`, `"`, and `$`
+   * escaped -- always, regardless of content -- so no value can accidentally
+   * terminate the list early, be split by whitespace, or trigger a `${...}`
+   * variable expansion on the next parse (see parseParamList()'s
+   * shell-word-style value scanning in poem-parser.js).
+   */
+  formatParamList(params) {
+    const pairs = Object.entries(params).map(([key, value]) => {
+      const escaped = String(value).replace(/[\\"$]/g, (c) => `\\${c}`);
+      return `${key}="${escaped}"`;
+    });
+    return `(${pairs.join(', ')})`;
   }
 
   /**
