@@ -73,6 +73,17 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `#0062CC` (≈5.8:1 against both white and each other). Decorative
   border/outline/focus-ring uses of `#007AFF`, and the already-compliant
   dark-mode palette, are unchanged. Resolves TD26072108.
+- **`yaml-to-poem.js` no longer silently drops data on a YAML→`.poem` round
+  trip.** Object-form audio params (`{ value, media?, ratio?, height? }`),
+  mixed-content `segment.parts` (WYSIWYG runs interleaved with embedded
+  `<<< >>>` blocks), version/segment/postscript label parameter lists
+  (`{Label}(key=value, ...)`), and the Metadata section's `labels`/
+  `directives` were all previously omitted from the writer's output with no
+  warning. All four are now written back, and a value that genuinely cannot
+  be represented as valid `.poem` syntax (e.g. a directive attribute value
+  containing a space) now raises a clear error instead of writing a line that
+  would parse back differently. Covered by
+  `test/yaml-to-poem-roundtrip.test.js`. Resolves TD26072109.
 
 ## [6.1.1] — 2026-07-19
 

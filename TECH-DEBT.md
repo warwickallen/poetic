@@ -135,16 +135,6 @@ in a different component. Fix: replace with a real `<button aria-expanded>`
 toggle, mirroring the existing analysis/song-embed controls in the same
 template.
 
-### TD26072109 yaml-to-poem.js silently drops data the current YAML shape can hold
-
-`writeAudio()`/`writeVersions()` don't handle object-form audio params or
-`segment.parts`, and `labels`/`directives` are never written at all — a poem's
-whole Metadata section is silently lost on a YAML→`.poem` round trip, untested
-at the level that would catch it. Fix: bring the writer functions in line with
-`poem-parser.js`'s current output shape, or explicitly error on unsupported
-shapes; add a round-trip test mirroring `test/browser-render.test.js`'s
-approach.
-
 ### TD26072110 poem-parser.js is a 1854-line monolith covering the whole grammar
 
 One `PoemParser` class with ~50 methods implements the entire `.poem` grammar
@@ -223,6 +213,35 @@ from and refer to a bare `vim/` directory (e.g. `cp vim/syntax/poem.vim
 predating the `vim/` → `editors/vim/` move. Fix: update those references to
 `editors/vim/`.
 
+### TD26072401 yaml-to-poem.js's plain-line writers still mangle content TD26072109 didn't touch
+
+Fixing TD26072109 (object-form audio params, `segment.parts`, labels,
+directives) surfaced two narrower, pre-existing round-trip gaps in the same
+file that are out of that item's scope:
+
+1. `writeVersions()` writes `segment.lines`/a `parts` `lines` entry straight
+   to the `.poem` output without calling `convertHtmlToPlainText()` (unlike
+   `writePostscript()`/`writeAnalysis()`, which do). Since that HTML already
+   went through `convertMarkup()`'s entity/tag encoding once, writing it
+   raw and re-parsing double-encodes: `*asterisks*` becomes `<em>` again,
+   `&#8220;`-style entities get produced from an already-decoded quote, etc.
+   (`node -e` against `src/poems/poem/_example.poem`'s Stanza 2 reproduces
+   this; see the PR for TD26072109 for the exact before/after diff).
+2. A `postscript.content`/`analysis.{synopsis,full}` value whose rendered
+   HTML has no blank-line-separated blocks (e.g. a paragraph immediately
+   followed by a list, `<p>...</p>\n<ul>...</ul>\n`) loses its trailing
+   newline on a content→`.poem`→content round trip: `convertHtmlToPlainText()`
+   falls through to its "plain text" branch for the whole un-blank-line-split
+   run, and GFM's raw-HTML-block merging drops the final `\n` that was there
+   originally. A single already-`<p>`-wrapped paragraph round-trips exactly;
+   multi-block raw HTML without blank lines between blocks does not.
+
+Fix: extend `convertHtmlToPlainText()` (or a segment-specific equivalent) to
+handle blockquotes/`<br/>`/`&nbsp;` so `writeVersions()` can safely convert
+segment HTML back to markup instead of writing it raw, and track down why the
+raw-HTML-block path loses its trailing newline. Add regression tests
+alongside `test/yaml-to-poem-roundtrip.test.js` once fixed.
+
 ## Ledger
 
 Every tech-debt ID ever allocated — open, in-progress, resolved, or not-debt —
@@ -273,7 +292,7 @@ resolved one, but nothing was fixed, so the `Resolved` column stays blank; the
 | TD26072106 | serve-static.js and public/index.js's fixed XSS have no regression tests | resolved | 2026-07-24 | #82 |
 | TD26072107 | package.json's engines.node floor (>=18) is past EOL | resolved | 2026-07-24 | #83 |
 | TD26072108 | Several public/poetic.css text colours fail WCAG AA contrast | resolved | 2026-07-24 | #85 |
-| TD26072109 | yaml-to-poem.js silently drops data the current YAML shape can hold | open | | |
+| TD26072109 | yaml-to-poem.js silently drops data the current YAML shape can hold | resolved | 2026-07-24 | #87 |
 | TD26072110 | poem-parser.js is a 1854-line monolith covering the whole grammar | open | | |
 | TD26072111 | Escape-placeholder and js-beautify-options code duplicated across files | open | | |
 | TD26072112 | No code-coverage tool configured | open | | |
@@ -284,3 +303,4 @@ resolved one, but nothing was fixed, so the `Resolved` column stays blank; the
 | TD26072117 | No quotes ESLint rule; JSDoc discipline weakest in the most complex file | open | | |
 | TD26072118 | Small independent fixes: poem-page heading level, vim ftdetect placeholder, browser-renderer errors, sync-framework doc callout | open | | |
 | TD26072201 | docs/VIM-SYNTAX.md still references a non-existent vim/ root path | open | | |
+| TD26072401 | yaml-to-poem.js's plain-line writers still mangle content TD26072109 didn't touch | open | | |
